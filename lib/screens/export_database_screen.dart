@@ -429,7 +429,7 @@ await file.writeAsBytes(bytes);
 
 // ================= OPEN EXCEL =================
 
-await OpenFilex.open(path);
+await launchUrl(path);
 
       // ================= SUCCESS =================
 

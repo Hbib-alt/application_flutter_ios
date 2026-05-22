@@ -671,7 +671,7 @@ await file.writeAsBytes(bytes);
 
 // ================= OPEN PDF =================
 
-await OpenFilex.open(path);
+await launchUrl(path);
 
 
 
