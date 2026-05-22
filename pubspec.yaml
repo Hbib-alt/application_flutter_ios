@@ -42,7 +42,7 @@ dependencies:
 
 
   # ✅ SHARE PDF
-  share_plus: ^10.0.0
+  share_plus: ^7.2.1
 
   # ✅ TEMP DIRECTORY
   path_provider: ^2.1.5
