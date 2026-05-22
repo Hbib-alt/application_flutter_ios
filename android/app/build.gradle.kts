@@ -49,9 +49,9 @@ android {
 
     multiDexEnabled = true
 
-    versionCode = flutter.versionCode.toInt()
+    versionCode = 1
 
-    versionName = flutter.versionName.toString()
+    versionName = "1.0.0"
 }
 
     buildTypes {
