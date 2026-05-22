@@ -63,10 +63,10 @@ class _ExportDatabaseScreenState
   fontSize: 14,
 
   fontColorHex:
-      ExcelColor.white,
+      "#FFFFFF",
 
   backgroundColorHex:
-      ExcelColor.teal,
+      "#008080",
 
   horizontalAlign:
       HorizontalAlign.Center,
@@ -135,10 +135,7 @@ class _ExportDatabaseScreenState
           ),
         );
 
-        cell.value =
-            CellValue(
-          headers[i],
-        );
+        cell.value = headers[i];
 
         cell.cellStyle =
             headerStyle;
