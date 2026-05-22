@@ -54,7 +54,7 @@ dependencies:
   url_launcher: ^6.3.0
 
   # ✅ EXCEL
-  excel: ^4.0.2
+  excel: ^2.1.0
   
 dev_dependencies:
 
