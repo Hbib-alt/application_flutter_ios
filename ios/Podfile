@@ -38,6 +38,10 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Remove problematic compiler flags
+      config.build_settings['OTHER_CFLAGS'] = ['$(inherited)']
+      config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ['$(inherited)']
     end
   end
 end
