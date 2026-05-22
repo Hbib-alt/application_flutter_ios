@@ -23,19 +23,19 @@ dependencies:
   firebase_messaging: ^14.9.4
 
   # 🌐 HTTP
-  http: ^0.13.6
+  http: ^1.6.0
 
   # 🔔 Notifications
   flutter_local_notifications: ^17.2.4
 
   # 🔊 Audio
-  audioplayers: ^4.1.0
+  audioplayers: ^5.2.1
 
   # 📊 Charts
   fl_chart: ^0.68.0
 
   # ✅ Fonts
-  google_fonts: ^4.0.4
+  google_fonts: ^6.2.1
 
   # 📄 PDF
   pdf: ^3.11.1
