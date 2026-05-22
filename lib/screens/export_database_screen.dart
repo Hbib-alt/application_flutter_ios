@@ -136,7 +136,7 @@ class _ExportDatabaseScreenState
         );
 
         cell.value =
-            TextCellValue(
+            CellValue(
           headers[i],
         );
 
@@ -313,48 +313,48 @@ for (var operation
 
   sheet.appendRow([
 
-    TextCellValue(
+    CellValue(
         createdAt),
 
-    TextCellValue(name),
+    CellValue(name),
 
-    TextCellValue(phone),
+    CellValue(phone),
 
-    TextCellValue(
+    CellValue(
         collector),
 
-    TextCellValue(
+    CellValue(
         typeArabic),
 
-    IntCellValue(amount),
+    CellValue(amount),
 
     paymentType ==
             "monthly"
 
-        ? IntCellValue(
+        ? CellValue(
             months)
 
-        : TextCellValue(
+        : CellValue(
             "—"),
 
-    IntCellValue(year),
+    CellValue(year),
 
-    TextCellValue(
+    CellValue(
         benefited),
 
-    TextCellValue(
+    CellValue(
         reason),
 
-    IntCellValue(
+    CellValue(
         pending),
 
-    IntCellValue(
+    CellValue(
         donations),
 
-    IntCellValue(
+    CellValue(
         panels),
 
-    TextCellValue(note),
+    CellValue(note),
   ]);
 
   // ================= STYLE =================
@@ -417,16 +417,7 @@ for (var operation
 
       // ================= APPLY WIDTH =================
 
-      for (int i = 0;
-          i < columnWidths.length;
-          i++) {
-
-        sheet.setColumnWidth(
-          i,
-          columnWidths[i],
-        );
-      }
-
+      
       // ================= ENCODE =================
 
       final bytes =
