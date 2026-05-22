@@ -41,8 +41,7 @@ android {
 
     defaultConfig {
 
-    applicationId =
-        "com.example.app_final_clean_v2"
+    applicationId = "com.example.app_final_clean_v2"
 
     minSdk = flutter.minSdkVersion
 
@@ -50,11 +49,9 @@ android {
 
     multiDexEnabled = true
 
-    versionCode =
-    flutter.versionCode.toInt()
+    versionCode = flutter.versionCode.toInt()
 
-versionName =
-    flutter.versionName
+    versionName = flutter.versionName.toString()
 }
 
     buildTypes {
