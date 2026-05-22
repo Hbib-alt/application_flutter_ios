@@ -48,7 +48,7 @@ dependencies:
   path_provider: ^2.1.5
 
   # ✅ OPEN FILE
-  open_file: ^3.5.4
+  open_filex: ^4.3.2
 
   # ✅ WHATSAPP
   url_launcher: ^6.3.0
