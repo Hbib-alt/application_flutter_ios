@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
+
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
@@ -429,7 +429,7 @@ await file.writeAsBytes(bytes);
 
 // ================= OPEN EXCEL =================
 
-await launchUrl(path);
+// await launchUrl(path);
 
       // ================= SUCCESS =================
 
