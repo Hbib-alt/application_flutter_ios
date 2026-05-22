@@ -1,0 +1,94 @@
+name: app_final_clean_v2
+
+description: Application 3enter - Gestion sociale
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.6
+
+  # 🔥 FIREBASE
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
+  firebase_messaging: ^14.9.4
+
+  # 🌐 HTTP
+  http: ^1.6.0
+
+  # 🔔 Notifications
+  flutter_local_notifications: ^17.2.4
+
+  # 🔊 Audio
+  audioplayers: ^5.2.1
+
+  # 📊 Charts
+  fl_chart: ^0.68.0
+
+  # ✅ Fonts
+  google_fonts: ^6.2.1
+
+  # 📄 PDF
+  pdf: ^3.11.1
+
+
+  # ✅ SHARE PDF
+  share_plus: ^10.0.0
+
+  # ✅ TEMP DIRECTORY
+  path_provider: ^2.1.5
+
+  # ✅ OPEN FILE
+  open_file: ^3.5.4
+
+  # ✅ WHATSAPP
+  url_launcher: ^6.3.0
+
+  # ✅ EXCEL
+  excel: ^4.0.2
+  
+dev_dependencies:
+
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.2
+
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+
+    - assets/images/logo.png
+
+    - assets/images/login_bg.jpg
+
+    - assets/sounds/notification.mp3
+
+  fonts:
+
+    - family: Cairo
+
+      fonts:
+
+        - asset: assets/fonts/cairo.ttf
+
+flutter_launcher_icons:
+
+  android: true
+
+  ios: true
+
+  image_path: "assets/images/logo.png"
