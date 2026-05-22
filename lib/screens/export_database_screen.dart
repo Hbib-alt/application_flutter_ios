@@ -313,49 +313,36 @@ for (var operation
 
   sheet.appendRow([
 
-    CellValue(
-        createdAt),
+  createdAt,
 
-    CellValue(name),
+  name,
 
-    CellValue(phone),
+  phone,
 
-    CellValue(
-        collector),
+  collector,
 
-    CellValue(
-        typeArabic),
+  typeArabic,
 
-    CellValue(amount),
+  amount,
 
-    paymentType ==
-            "monthly"
+  paymentType == "monthly"
+      ? months
+      : "—",
 
-        ? CellValue(
-            months)
+  year,
 
-        : CellValue(
-            "—"),
+  benefited,
 
-    CellValue(year),
+  reason,
 
-    CellValue(
-        benefited),
+  pending,
 
-    CellValue(
-        reason),
+  donations,
 
-    CellValue(
-        pending),
+  panels,
 
-    CellValue(
-        donations),
-
-    CellValue(
-        panels),
-
-    CellValue(note),
-  ]);
+  note,
+]);
 
   // ================= STYLE =================
 
