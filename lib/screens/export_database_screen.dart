@@ -1,10 +1,18 @@
 import 'dart:io';
+
+import 'package:permission_handler/permission_handler.dart';
+import 'package:open_filex/open_filex.dart';
+
+import '../utils/web_download.dart';
 import 'package:path_provider/path_provider.dart';
 
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ExportDatabaseScreen extends StatefulWidget {
 
@@ -39,19 +47,45 @@ class _ExportDatabaseScreenState
     await FirebaseFirestore
         .instance
         .collection("operations")
+
+.where(
+  "isDeleted",
+  isEqualTo: false,
+)
+
+.orderBy(
+  "createdAt",
+  descending: true,
+)
+
+        
+        .get();
+final healthCasesSnapshot =
+    await FirebaseFirestore
+        .instance
+        .collection("health_cases")
+        .where(
+          "status",
+          isEqualTo: "paid",
+        )
         .orderBy(
           "createdAt",
           descending: true,
         )
         .get();
-
+        
       // ================= CREATE EXCEL =================
 
       final excel =
-          Excel.createExcel();
+    Excel.createExcel();
 
-      final sheet =
-          excel['قاعدة البيانات'];
+final sheet =
+    excel['قاعدة البيانات'];
+
+final healthSheet =
+    excel['الحالات الصحية المعوضة'];
+
+
 
       // ================= STYLES =================
 
@@ -66,7 +100,7 @@ class _ExportDatabaseScreenState
       "#FFFFFF",
 
   backgroundColorHex:
-      "#008080",
+      "#444444",
 
   horizontalAlign:
       HorizontalAlign.Center,
@@ -118,6 +152,21 @@ class _ExportDatabaseScreenState
   "ملاحظات",
 ];
 
+ healthSheet.appendRow([
+  "الاسم",
+
+  "الهاتف",
+
+  "نوع الحالة",
+
+  "المستشفى",
+
+  "المبلغ MRU",
+
+  "الحالة",
+
+  "تاريخ الدفع",
+]);
       // ================= INSERT HEADERS =================
 
       for (int i = 0;
@@ -364,8 +413,43 @@ for (var operation
 
   row++;
 }
+for (final doc
+    in healthCasesSnapshot.docs) {
 
-        
+  final data = doc.data();
+
+  String statusArabic =
+      "تم الدفع";
+
+  String paidDate = "";
+
+  if (data["paidAt"] != null) {
+
+    final date =
+        (data["paidAt"] as Timestamp)
+            .toDate();
+
+    paidDate =
+        "${date.day}/${date.month}/${date.year}";
+  }
+
+  healthSheet.appendRow([
+
+    data["fullName"] ?? "",
+
+    data["phone"] ?? "",
+
+    data["description"] ?? "",
+
+    data["hospitalName"] ?? "",
+
+   data["approvedAmount"] ?? data["suggestedAmount"] ?? 0,
+
+    statusArabic,
+
+    paidDate,
+  ]);
+}
       // ================= COLUMN WIDTHS =================
 
       List<double> columnWidths = [
@@ -416,17 +500,44 @@ for (var operation
 
       // ================= SAVE EXCEL =================
 
-final directory =
-    await getApplicationDocumentsDirectory();
+// ================= WEB DOWNLOAD =================
 
-final path =
-    "${directory.path}/قاعدة_بيانات_لجنة_كونكل_الخير.xlsx";
+if (kIsWeb) {
 
-final file =
-    File(path);
+  await downloadFile(
 
-await file.writeAsBytes(bytes);
+  bytes,
 
+  "database.xlsx",
+
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+);
+
+  
+}
+
+// ================= MOBILE / WINDOWS =================
+
+else {
+
+  await Permission.storage.request();
+
+  final directory =
+
+      Directory(
+        '/storage/emulated/0/Download',
+      );
+
+  final path =
+
+      "${directory.path}/قاعدة_بيانات_لجنة_كونكل_الخير.xlsx";
+
+  final file = File(path);
+
+  await file.writeAsBytes(bytes);
+
+  await OpenFilex.open(path);
+}
 // ================= OPEN EXCEL =================
 
 // await launchUrl(path);
@@ -551,55 +662,122 @@ await file.writeAsBytes(bytes);
                 height: 40,
               ),
 
-              ElevatedButton.icon(
+             FutureBuilder<DocumentSnapshot>(
 
-                onPressed:
-                    loading
-                        ? null
-                        : exportDatabase,
+  future:
+      FirebaseFirestore.instance
+          .collection("users")
+          .doc(
+            FirebaseAuth
+                .instance
+                .currentUser
+                ?.uid,
+          )
+          .get(),
 
-                icon:
-                    const Icon(
-                  Icons.download,
-                ),
+  builder: (
+    context,
+    snapshot,
+  ) {
 
-                label:
-                    loading
-                        ? const Padding(
+    if (!snapshot.hasData) {
 
-                            padding:
-                                EdgeInsets.all(
-                              8,
-                            ),
+      return const CircularProgressIndicator();
+    }
 
-                            child:
-                                CircularProgressIndicator(
-                              color:
-                                  Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            "تصدير Excel",
-                          ),
+    final userData =
+        snapshot.data!.data()
+            as Map<String, dynamic>?;
 
-                style:
-                    ElevatedButton.styleFrom(
+    final isAdmin =
 
-                  backgroundColor:
-                      Colors.green,
+        userData?["role"] ==
+            "admin";
 
-                  foregroundColor:
-                      Colors.white,
+    return Column(
 
-                  padding:
-                      const EdgeInsets.symmetric(
+      children: [
 
-                    horizontal: 30,
+        ElevatedButton.icon(
 
-                    vertical: 18,
-                  ),
-                ),
+          onPressed:
+
+              !isAdmin
+                  ? null
+                  : loading
+                      ? null
+                      : exportDatabase,
+
+          icon: const Icon(
+            Icons.download,
+          ),
+
+          label:
+
+              loading
+
+                  ? const Padding(
+
+                      padding:
+                          EdgeInsets.all(8),
+
+                      child:
+                          CircularProgressIndicator(
+                        color:
+                            Colors.white,
+                      ),
+                    )
+
+                  : const Text(
+                      "تصدير Excel",
+                    ),
+
+          style:
+              ElevatedButton.styleFrom(
+
+            backgroundColor:
+                Colors.green,
+
+            foregroundColor:
+                Colors.white,
+
+            padding:
+                const EdgeInsets.symmetric(
+
+              horizontal: 30,
+
+              vertical: 18,
+            ),
+          ),
+        ),
+
+        if (!isAdmin)
+
+          const Padding(
+
+            padding:
+                EdgeInsets.only(
+              top: 12,
+            ),
+
+            child: Text(
+
+              "التحميل متاح للإدارة فقط",
+
+              style: TextStyle(
+
+                color: Colors.red,
+
+                fontWeight:
+                    FontWeight.bold,
               ),
+            ),
+          ),
+      ],
+    );
+  },
+),
+
             ],
           ),
         ),

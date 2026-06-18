@@ -6,11 +6,14 @@ class ReportsScreen extends StatelessWidget {
 
   Future<Map<String, dynamic>> getReports() async {
 
-    // ✅ Lire les transactions validées
     final snapshot =
         await FirebaseFirestore
             .instance
             .collection("transactions")
+            .where(
+              "isDeleted",
+              isEqualTo: false,
+            )
             .get();
 
     double monthlyTotal = 0;
@@ -26,23 +29,38 @@ class ReportsScreen extends StatelessWidget {
       final data = doc.data();
 
       // ✅ uniquement les ajouts
-      if (data["type"] != "add") {
+      final type =
+          data["type"]
+              ?.toString()
+              .trim()
+              .toLowerCase() ?? "";
+
+      if (type != "add") {
         continue;
       }
 
+      // ✅ payment type
       final paymentType =
-          data["paymentType"] ?? "";
+          data["paymentType"]
+              ?.toString()
+              .trim()
+              .toLowerCase() ?? "";
 
       final amount =
-          (data["amount"] ?? 0)
-              .toDouble();
+          double.tryParse(
+                data["amount"]
+                    .toString(),
+              ) ??
+              0;
 
       // =========================
       // 💳 اشتراكات
       // =========================
 
-      if (paymentType ==
-          "monthly") {
+      if (
+          paymentType == "monthly" ||
+          paymentType == "subscription"
+      ) {
 
         monthlyTotal += amount;
 
@@ -53,8 +71,9 @@ class ReportsScreen extends StatelessWidget {
       // ❤️ تبرعات
       // =========================
 
-      else if (paymentType ==
-          "donation") {
+      else if (
+          paymentType == "donation"
+      ) {
 
         donationTotal += amount;
 
@@ -65,8 +84,9 @@ class ReportsScreen extends StatelessWidget {
       // 📦 لوحة
       // =========================
 
-      else if (paymentType ==
-          "panel") {
+      else if (
+          paymentType == "panel"
+      ) {
 
         panelTotal += amount;
 
@@ -237,7 +257,7 @@ class ReportsScreen extends StatelessWidget {
                   trailing:
                       Text(
 
-                    "$total MRU",
+                    "${total.toStringAsFixed(0)} MRU",
 
                     style:
                         const TextStyle(
@@ -338,7 +358,7 @@ class ReportsScreen extends StatelessWidget {
         trailing:
             Text(
 
-          "$total MRU",
+          "${total.toStringAsFixed(0)} MRU",
 
           style: TextStyle(
 

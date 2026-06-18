@@ -9,31 +9,31 @@ class FirestoreService {
   // 📂 HEALTH CASES
   // =========================
 
-  static Stream<List<Map<String, dynamic>>>
-      getCases() {
+ 
+// =========================
+// 📂 HEALTH CASES
+// =========================
 
-    return _firestore
-        .collection("health_cases")
-        .orderBy(
-          "createdAt",
-          descending: true,
-        )
-        .snapshots()
-        .map((snapshot) {
+static Stream<
+    QuerySnapshot<
+        Map<String, dynamic>>>
+    getCases() {
 
-      return snapshot.docs.map((doc) {
+  return _firestore
+      .collection("health_cases")
 
-        return {
+      .where(
+        "isDeleted",
+        isEqualTo: false,
+      )
 
-          "id": doc.id,
+      .orderBy(
+        "createdAt",
+        descending: true,
+      )
 
-          ...doc.data(),
-        };
-
-      }).toList();
-    });
-  }
-
+      .snapshots();
+}
   // =========================
   // ➕ ADD HEALTH CASE
   // =========================
@@ -69,6 +69,7 @@ class FirestoreService {
 
       "createdAt":
           FieldValue.serverTimestamp(),
+      "isDeleted": false,
     });
   }
 
@@ -108,21 +109,30 @@ class FirestoreService {
   }
 
   // =========================
-  // 📜 TRANSACTIONS
-  // =========================
+ // =========================
+// 📜 TRANSACTIONS
+// =========================
 
-  static Stream<QuerySnapshot<
-      Map<String, dynamic>>>
-      getTransactions() {
+static Stream<
+    QuerySnapshot<
+        Map<String, dynamic>>>
+    getTransactions() {
 
-    return _firestore
-        .collection("transactions")
-        .orderBy(
-          "createdAt",
-          descending: true,
-        )
-        .snapshots();
-  }
+  return _firestore
+      .collection("transactions")
+
+      .where(
+        "isDeleted",
+        isEqualTo: false,
+      )
+
+      .orderBy(
+        "createdAt",
+        descending: true,
+      )
+
+      .snapshots();
+}
 
   // =========================
   // 💳 SUBSCRIPTIONS
@@ -184,12 +194,19 @@ class FirestoreService {
       Map<String, dynamic>>>
       getOperations() {
 
-    return _firestore
-        .collection("operations")
-        .orderBy(
-          "createdAt",
-          descending: true,
-        )
-        .snapshots();
+   return _firestore
+    .collection("operations")
+
+    .where(
+      "isDeleted",
+      isEqualTo: false,
+    )
+
+    .orderBy(
+      "createdAt",
+      descending: true,
+    )
+
+    .snapshots();
   }
 }

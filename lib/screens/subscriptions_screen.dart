@@ -6,50 +6,107 @@ class SubscriptionsScreen extends StatelessWidget {
   const SubscriptionsScreen({
     super.key,
   });
+Future<int> getAnnualRecoveryRate() async {
 
+  final peopleSnapshot =
+      await FirebaseFirestore.instance
+          .collection("people")
+          .get();
+
+  final statsSnapshot =
+      await FirebaseFirestore.instance
+          .collection("subscription_stats")
+          .get();
+
+  int annualExpected = 0;
+  int totalCollected = 0;
+
+  for (final doc in peopleSnapshot.docs) {
+
+    final data = doc.data();
+
+    annualExpected +=
+        ((data["monthlyAmount"] ?? 0)
+                as num)
+            .toInt() *
+        12;
+  }
+
+  for (final doc in statsSnapshot.docs) {
+
+    final data = doc.data();
+
+    totalCollected +=
+        ((data["totalPaid"] ?? 0)
+                as num)
+            .toInt();
+  }
+
+  if (annualExpected == 0) {
+    return 0;
+  }
+
+  return ((totalCollected /
+              annualExpected) *
+          100)
+      .clamp(0, 100)
+      .toInt();
+}
   @override
   Widget build(BuildContext context) {
 
     return Scaffold(
 
       backgroundColor:
-          const Color(0xFFF5F6FA),
+          const Color(
+        0xFFF5F6FA,
+      ),
 
       appBar: AppBar(
 
-        title:
-            const Text("الاشتراكات"),
+        elevation: 0,
+
+        backgroundColor:
+            Colors.white,
+
+        foregroundColor:
+            Colors.black,
 
         centerTitle: true,
+
+        title: const Text(
+
+          "المساهمات",
+
+          style: TextStyle(
+
+            fontWeight:
+                FontWeight.bold,
+          ),
+        ),
       ),
 
-      floatingActionButton:
-          FloatingActionButton(
-
-        onPressed: () {
-
-          _showAddDialog(context);
-        },
-
-        child:
-            const Icon(Icons.add),
-      ),
-
-      body: StreamBuilder<QuerySnapshot>(
+      body:
+          StreamBuilder<
+              QuerySnapshot>(
 
         stream:
-            FirebaseFirestore.instance
-                .collection("subscriptions")
-                .orderBy(
-                  "createdAt",
-                  descending: true,
+            FirebaseFirestore
+                .instance
+                .collection(
+                  "subscription_stats",
                 )
                 .snapshots(),
 
-        builder:
-            (context, snapshot) {
+        builder: (
+          context,
+          snapshot,
+        ) {
 
-          if (!snapshot.hasData) {
+          if (snapshot
+                  .connectionState ==
+              ConnectionState
+                  .waiting) {
 
             return const Center(
 
@@ -58,362 +115,392 @@ class SubscriptionsScreen extends StatelessWidget {
             );
           }
 
-          final docs =
-              snapshot.data!.docs;
-
-          if (docs.isEmpty) {
+          if (!snapshot.hasData ||
+              snapshot.data!
+                  .docs
+                  .isEmpty) {
 
             return const Center(
 
               child: Text(
-                "لا يوجد مشتركون",
+                "لا توجد بيانات",
               ),
             );
           }
 
-          return ListView.builder(
+          final docs =
+              snapshot.data!.docs;
 
-            padding:
-                const EdgeInsets.all(16),
+          int totalExpected = 0;
 
-            itemCount:
-                docs.length,
+          int totalCollected = 0;
 
-            itemBuilder:
-                (context, index) {
+          int totalDebt = 0;
 
-              final data =
-                  docs[index].data()
-                      as Map<String, dynamic>;
+          int totalAdvance = 0;
 
-              final fullName =
-                  data["fullName"] ?? "";
+         for (final doc in docs) {
 
-              final phone =
-                  data["phone"] ?? "";
+  final data =
+      doc.data()
+          as Map<String, dynamic>;
 
-              final monthlyAmount =
-                  data["monthlyAmount"] ?? 0;
+  totalExpected +=
+      (data["expectedAmount"] ?? 0)
+          as int;
 
-              final paidMonths =
-                  data["paidMonths"] ?? 0;
+  totalCollected +=
+      (data["totalPaid"] ?? 0)
+          as int;
 
-              final lateMonths =
-                  data["lateMonths"] ?? 0;
+  totalDebt +=
+      (data["debt"] ?? 0)
+          as int;
 
-              final totalLate =
-                  data["totalLate"] ?? 0;
+  totalAdvance +=
+      (data["advance"] ?? 0)
+          as int;
+}
+          
 
-              return Container(
+         final collectedUntilToday =
+    totalCollected - totalAdvance;
 
-                margin:
-                    const EdgeInsets.only(
-                  bottom: 16,
-                ),
+final collectionRate =
+    totalExpected == 0
+        ? 0
+        : ((collectedUntilToday / totalExpected) * 100)
+            .clamp(0, 100)
+            .toInt();
 
-                padding:
-                    const EdgeInsets.all(
-                  18,
-                ),
+          return SafeArea(
 
-                decoration:
-                    BoxDecoration(
+            child:
+                SingleChildScrollView(
 
-                  color: Colors.white,
+              padding:
+                  const EdgeInsets
+                      .all(
+                16,
+              ),
 
-                  borderRadius:
-                      BorderRadius.circular(
-                    24,
+              child: Column(
+
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+
+                children: [
+
+                  _headerCard(),
+
+                  const SizedBox(
+                    height: 24,
                   ),
 
-                  boxShadow: [
+                  Row(
 
-                    BoxShadow(
+                    children: [
 
-                      color:
-                          Colors.black
-                              .withOpacity(
-                        0.04,
-                      ),
+                      _dashboardCard(
 
-                      blurRadius: 15,
+                        title:
+                            "المبلغ المتوقع حتى اليوم",
 
-                      offset:
-                          const Offset(
-                        0,
-                        6,
-                      ),
-                    ),
-                  ],
-                ),
+                        value:
+                            "$totalExpected MRU",
 
-                child: Column(
-
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-
-                  children: [
-
-                    Row(
-
-                      children: [
-
-                        CircleAvatar(
-
-                          radius: 28,
-
-                          backgroundColor:
-                              Colors.deepPurple
-                                  .withOpacity(
-                            0.15,
-                          ),
-
-                          child: const Icon(
-
-                            Icons.person,
-
-                            color:
-                                Colors.deepPurple,
-
-                            size: 30,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 14,
-                        ),
-
-                        Expanded(
-
-                          child: Column(
-
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-
-                            children: [
-
-                              Text(
-
-                                fullName,
-
-                                style:
-                                    const TextStyle(
-
-                                  fontSize: 20,
-
-                                  fontWeight:
-                                      FontWeight.bold,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 4,
-                              ),
-
-                              Text(
-
-                                phone,
-
-                                style:
-                                    TextStyle(
-
-                                  color:
-                                      Colors
-                                          .grey
-                                          .shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    Row(
-
-                      children: [
-
-                        _infoCard(
-                          "الاشتراك",
-                          "$monthlyAmount MRU",
-                          Colors.green,
-                        ),
-
-                        const SizedBox(
-                          width: 10,
-                        ),
-
-                        _infoCard(
-                          "المدفوع",
-                          "$paidMonths",
-                          Colors.blue,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 10,
-                    ),
-
-                    Row(
-
-                      children: [
-
-                        _infoCard(
-                          "المتأخر",
-                          "$lateMonths",
-                          Colors.orange,
-                        ),
-
-                        const SizedBox(
-                          width: 10,
-                        ),
-
-                        _infoCard(
-                          "الدين",
-                          "$totalLate MRU",
-                          Colors.red,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 18,
-                    ),
-
-                    SizedBox(
-
-                      width: double.infinity,
-
-                      child: ElevatedButton.icon(
-
-                        style:
-                            ElevatedButton
-                                .styleFrom(
-
-                          backgroundColor:
-                              Colors.deepPurple,
-
-                          minimumSize:
-                              const Size(
-                            0,
-                            50,
-                          ),
-                        ),
-
-                        onPressed: () async {
-
-                          await FirebaseFirestore
-                              .instance
-                              .collection(
-                                "subscriptions",
-                              )
-                              .doc(
-                                docs[index].id,
-                              )
-                              .update({
-
-                            "paidMonths":
-                                paidMonths + 1,
-
-                            "lateMonths":
-                                lateMonths > 0
-                                    ? lateMonths - 1
-                                    : 0,
-
-                            "totalLate":
-                                totalLate >
-                                        monthlyAmount
-                                    ? totalLate -
-                                        monthlyAmount
-                                    : 0,
-                          });
-
-                          if (!context.mounted) {
-                            return;
-                          }
-
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
-
-                            const SnackBar(
-
-                              content: Text(
-                                "✅ تم تسجيل الدفع",
-                              ),
-                            ),
-                          );
-                        },
+                        description:
+                            "إجمالي الإشتراكات المطلوبة حتى اليوم",
 
                         icon:
-                            const Icon(Icons.check),
+                            Icons.account_balance_wallet,
 
-                        label:
-                            const Text(
-                          "تسجيل دفع",
+                        color:
+                            const Color(
+                          0xFF34C759,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+
+                      const SizedBox(
+                        width: 12,
+                      ),
+
+                      _dashboardCard(
+
+                        title:
+                            "المبلغ المحصل",
+
+                        value:
+                            "$totalCollected MRU",
+
+                        description:
+                            "إجمالي التحصيلات",
+
+                        icon:
+                            Icons.check_circle,
+
+                        color:
+                            const Color(
+                          0xFF0A84FF,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  Row(
+
+                    children: [
+
+                      _dashboardCard(
+
+  title:
+      "الرصيد المسبق",
+
+  value:
+      "$totalAdvance MRU",
+
+  description:
+      "المبالغ المدفوعة مقدماً",
+
+  icon:
+      Icons.trending_up,
+
+  color:
+      const Color(
+    0xFFAF52DE,
+  ),
+),
+                      const SizedBox(
+                        width: 12,
+                      ),
+
+                      _dashboardCard(
+
+                        title:
+                            "إجمالي الديون",
+
+                        value:
+                            "$totalDebt MRU",
+
+                        description:
+                            "إجمالي الديون الحالية",
+
+                        icon:
+                            Icons.warning,
+
+                        color:
+                            const Color(
+                          0xFFFF453A,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  
+            
+                  const SizedBox(
+                    height: 24,
+                  ),
+
+                  FutureBuilder<int>(
+
+  future:
+      getAnnualRecoveryRate(),
+
+  builder:
+      (context, annualSnapshot) {
+
+    final annualRate =
+        annualSnapshot.data ?? 0;
+
+    return _summaryCard(
+
+      collectionRate:
+          collectionRate,
+
+      annualRate:
+          annualRate,
+    );
+  },
+)
+                ],
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  // ================= INFO CARD =================
+  static Widget _headerCard() {
 
-  Widget _infoCard(
+    return Container(
 
-    String title,
+      width:
+          double.infinity,
 
-    String value,
+      padding:
+          const EdgeInsets.all(
+        24,
+      ),
 
-    Color color,
-  ) {
+      decoration:
+          BoxDecoration(
+
+        gradient:
+            const LinearGradient(
+
+          colors: [
+
+            Color(
+              0xFF6C4DFF,
+            ),
+
+            Color(
+              0xFF3F2DBF,
+            ),
+          ],
+        ),
+
+        borderRadius:
+            BorderRadius.circular(
+          30,
+        ),
+      ),
+
+      child: const Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment
+                .start,
+
+        children: [
+
+          Icon(
+
+            Icons.analytics,
+
+            color:
+                Colors.white,
+
+            size: 38,
+          ),
+
+          SizedBox(
+            height: 18,
+          ),
+
+          Text(
+
+            "الوضعية السنوية",
+
+            style: TextStyle(
+
+              color:
+                  Colors.white,
+
+              fontSize: 28,
+
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _dashboardCard({
+
+    required String title,
+
+    required String value,
+
+    required String description,
+
+    required IconData icon,
+
+    required Color color,
+  }) {
 
     return Expanded(
 
       child: Container(
 
         padding:
-            const EdgeInsets.all(14),
+            const EdgeInsets.all(
+          20,
+        ),
 
         decoration:
             BoxDecoration(
 
           color:
-              color.withOpacity(0.10),
+              Colors.white,
 
           borderRadius:
-              BorderRadius.circular(18),
+              BorderRadius.circular(
+            26,
+          ),
         ),
 
         child: Column(
 
           children: [
 
+            Icon(
+
+              icon,
+
+              color:
+                  color,
+
+              size: 32,
+            ),
+
+            const SizedBox(
+              height: 14,
+            ),
+
             Text(
 
               value,
 
+              textAlign:
+                  TextAlign.center,
+
               style: TextStyle(
 
-                color: color,
+                color:
+                    color,
+
+                fontSize: 20,
 
                 fontWeight:
                     FontWeight.bold,
+              ),
+            ),
 
-                fontSize: 18,
+            const SizedBox(
+              height: 8,
+            ),
+
+            Text(
+
+              title,
+
+              textAlign:
+                  TextAlign.center,
+
+              style: TextStyle(
+
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
@@ -423,14 +510,18 @@ class SubscriptionsScreen extends StatelessWidget {
 
             Text(
 
-              title,
+              description,
 
-              style:
-                  TextStyle(
+              textAlign:
+                  TextAlign.center,
 
-                color: Colors
-                    .grey
-                    .shade700,
+              style: TextStyle(
+
+                color:
+                    Colors.grey
+                        .shade600,
+
+                fontSize: 12,
               ),
             ),
           ],
@@ -439,190 +530,146 @@ class SubscriptionsScreen extends StatelessWidget {
     );
   }
 
-  // ================= ADD =================
+   
+  static Widget _summaryCard({
+  required int collectionRate,
+  required int annualRate,
+}) {
 
-  void _showAddDialog(
-    BuildContext context,
-  ) {
+    return Container(
 
-    final nameController =
-        TextEditingController();
+      width:
+          double.infinity,
 
-    final phoneController =
-        TextEditingController();
+      padding:
+          const EdgeInsets.all(
+        24,
+      ),
 
-    final amountController =
-        TextEditingController();
+      decoration:
+          BoxDecoration(
 
-    showDialog(
+        color:
+            Colors.white,
 
-      context: context,
+        borderRadius:
+            BorderRadius.circular(
+          30,
+        ),
+      ),
 
-      builder: (_) {
+      child: Column(
 
-        return AlertDialog(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
 
-          title:
-              const Text(
-            "إضافة مشترك",
-          ),
+        children: [
 
-          content:
-              SingleChildScrollView(
+          const Text(
 
-            child: Column(
+            "ملخص الوضعية",
 
-              mainAxisSize:
-                  MainAxisSize.min,
+            style: TextStyle(
 
-              children: [
+              fontSize: 22,
 
-                TextField(
-
-                  controller:
-                      nameController,
-
-                  decoration:
-                      const InputDecoration(
-
-                    hintText:
-                        "الاسم",
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                TextField(
-
-                  controller:
-                      phoneController,
-
-                  decoration:
-                      const InputDecoration(
-
-                    hintText:
-                        "الهاتف",
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                TextField(
-
-                  controller:
-                      amountController,
-
-                  keyboardType:
-                      TextInputType.number,
-
-                  decoration:
-                      const InputDecoration(
-
-                    hintText:
-                        "الاشتراك الشهري",
-                  ),
-                ),
-              ],
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
 
-          actions: [
+          const SizedBox(
+            height: 20,
+          ),
 
-            TextButton(
+          Text(
+  "نسبة التغطية حتى اليوم",
 
-              onPressed: () {
 
-                Navigator.pop(
-                  context,
-                );
-              },
 
-              child:
-                  const Text(
-                "إلغاء",
-              ),
+            style: TextStyle(
+
+              color:
+                  Colors.grey
+                      .shade700,
+            ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          ClipRRect(
+
+            borderRadius:
+                BorderRadius.circular(
+              20,
             ),
 
-            ElevatedButton(
+            child:
+                LinearProgressIndicator(
 
-              onPressed: () async {
+              value:
+                  collectionRate / 100,
 
-                final amount =
-                    int.tryParse(
-
-                          amountController
-                              .text
-                              .trim(),
-                        ) ??
-                        0;
-
-                await FirebaseFirestore
-                    .instance
-                    .collection(
-                      "subscriptions",
-                    )
-                    .add({
-
-                  "fullName":
-                      nameController
-                          .text
-                          .trim(),
-
-                  "phone":
-                      phoneController
-                          .text
-                          .trim(),
-
-                  "monthlyAmount":
-                      amount,
-
-                  "paidMonths":
-                      0,
-
-                  "lateMonths":
-                      0,
-
-                  "totalLate":
-                      0,
-
-                  "createdAt":
-                      FieldValue
-                          .serverTimestamp(),
-                });
-
-                if (!context.mounted) {
-                  return;
-                }
-
-                Navigator.pop(
-                  context,
-                );
-
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(
-
-                  const SnackBar(
-
-                    content: Text(
-                      "✅ تمت إضافة المشترك",
-                    ),
-                  ),
-                );
-              },
-
-              child:
-                  const Text(
-                "إضافة",
-              ),
+              minHeight:
+                  12,
             ),
-          ],
-        );
-      },
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Text(
+
+            "$collectionRate%",
+
+            style: const TextStyle(
+
+              fontSize: 18,
+
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+          const SizedBox(
+  height: 24,
+),
+
+Text(
+  "نسبة التحصيل السنوية",
+  style: TextStyle(
+    color: Colors.grey.shade700,
+  ),
+),
+
+const SizedBox(
+  height: 12,
+),
+
+ClipRRect(
+  borderRadius:
+      BorderRadius.circular(20),
+  child: LinearProgressIndicator(
+    value: annualRate / 100,
+    minHeight: 12,
+  ),
+),
+
+const SizedBox(
+  height: 12,
+),
+
+Text(
+  "$annualRate%",
+  style: const TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+),
+        ],
+      ),
     );
   }
 }

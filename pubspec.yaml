@@ -42,12 +42,17 @@ dependencies:
 
 
   # ✅ SHARE PDF
-  share_plus: ^7.2.1
+  share_plus: ^10.0.0
 
-  # ✅ TEMP DIRECTORY
+    # ✅ TEMP DIRECTORY
   path_provider: ^2.1.5
 
+  # ✅ STORAGE PERMISSION
+  permission_handler: ^11.3.1
+
   # ✅ OPEN FILE
+  open_filex: ^4.4.0
+  
 
 
   # ✅ WHATSAPP

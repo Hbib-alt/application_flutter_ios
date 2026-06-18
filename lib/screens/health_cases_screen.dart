@@ -7,6 +7,7 @@ import '../services/user_service.dart';
 
 import 'add_health_case_screen.dart';
 import 'health_case_payment_screen.dart';
+import '../services/health_case_notification_service.dart';
 
 class HealthCasesScreen
     extends StatelessWidget {
@@ -177,6 +178,19 @@ class HealthCasesScreen
       FieldValue
           .serverTimestamp(),
 });
+if (newCount == 5) {
+
+  await HealthCaseNotificationService
+      .notifyPresident(
+
+    title: "📋 حالة جاهزة للبت فيها",
+
+    body:
+        "تم الحصول على 5 آراء، يرجى اتخاذ القرار",
+
+    caseId: caseId,
+  );
+}
 
 if (!context.mounted) return;
 
@@ -287,43 +301,50 @@ ScaffoldMessenger.of(context)
                       await UserService
                           .getUserRole();
 
-                  await FirebaseFirestore
-                      .instance
-                      .collection(
-                        "health_cases",
-                      )
-                      .doc(caseId)
-                      .update({
+                 await FirebaseFirestore
+    .instance
+    .collection(
+      "health_cases",
+    )
+    .doc(caseId)
+    .update({
 
-                    "status":
-                        decisionType,
+  "status":
+      decisionType,
 
-                    "decisionType":
-                        decisionType,
+  "decisionType":
+      decisionType,
 
-                    "decisionBy":
-                        uid,
+  "decisionBy":
+      uid,
 
-                    "decisionByName":
-                        userName,
+  "decisionByName":
+      userName,
 
-                    "decisionByRole":
-                        userRole,
+  "decisionByRole":
+      userRole,
 
-                    "decisionNote":
-                        noteController
-                            .text
-                            .trim(),
+  "decisionNote":
+      noteController
+          .text
+          .trim(),
 
-                    "presidentDecisionAt":
-                        FieldValue
-                            .serverTimestamp(),
-                  });
+  "presidentDecisionAt":
+      FieldValue
+          .serverTimestamp(),
+});
 
-                  Navigator.pop(
-                    context,
-                  );
+await HealthCaseNotificationService
+    .notifyTreasurer(
+  title: "💰 حالة معتمدة",
+  body:
+      "تم اعتماد الملف من طرف اللجنة، يرجى صرف المستحق",
+  caseId: caseId,
+);
 
+Navigator.pop(
+  context,
+);
                   
 
 if (!context.mounted) return;
@@ -514,48 +535,55 @@ ScaffoldMessenger.of(
                     await UserService
                         .getUserRole();
 
-                await FirebaseFirestore
-                    .instance
-                    .collection(
-                      "health_cases",
-                    )
-                    .doc(caseId)
-                    .update({
+               await FirebaseFirestore
+    .instance
+    .collection(
+      "health_cases",
+    )
+    .doc(caseId)
+    .update({
 
-                  "status":
-                      Workflow
-                          .discretionarySupport,
+  "status":
+      Workflow
+          .discretionarySupport,
 
-                  "decisionType":
-                      Workflow
-                          .discretionarySupport,
+  "decisionType":
+      Workflow
+          .discretionarySupport,
 
-                  "approvedAmount":
-                      amount,
+  "approvedAmount":
+      amount,
 
-                  "decisionBy":
-                      uid,
+  "decisionBy":
+      uid,
 
-                  "decisionByName":
-                      userName,
+  "decisionByName":
+      userName,
 
-                  "decisionByRole":
-                      userRole,
+  "decisionByRole":
+      userRole,
 
-                  "decisionNote":
-                      noteController
-                          .text
-                          .trim(),
+  "decisionNote":
+      noteController
+          .text
+          .trim(),
 
-                  "presidentDecisionAt":
-                      FieldValue
-                          .serverTimestamp(),
-                });
+  "presidentDecisionAt":
+      FieldValue
+          .serverTimestamp(),
+});
 
-                Navigator.pop(
-                  context,
-                );
+await HealthCaseNotificationService
+    .notifyTreasurer(
+  title: "⭐ دعم استثنائي معتمد",
+  body:
+      "تم اعتماد دعم استثنائي، يرجى صرف المستحق",
+  caseId: caseId,
+);
 
+Navigator.pop(
+  context,
+);
                
 
 if (!context.mounted) return;

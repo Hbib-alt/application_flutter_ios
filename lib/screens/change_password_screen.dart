@@ -25,24 +25,30 @@ class _ChangePasswordScreenState
 
   final confirmController =
       TextEditingController();
-
+final oldPasswordController =
+    TextEditingController();
+  
   bool loading = false;
 
-  bool obscurePassword = true;
-  bool obscureConfirm = true;
+bool obscureOldPassword = true;
+bool obscurePassword = true;
+bool obscureConfirm = true;
 
   // ================= CHANGE PASSWORD =================
 
   Future<void> changePassword() async {
 
+    final oldPassword =
+    oldPasswordController.text.trim();
     final password =
         passwordController.text.trim();
 
     final confirm =
         confirmController.text.trim();
 
-    if (password.isEmpty ||
-        confirm.isEmpty) {
+    if (oldPassword.isEmpty ||
+    password.isEmpty ||
+    confirm.isEmpty) {
 
       ScaffoldMessenger.of(context)
           .showSnackBar(
@@ -116,9 +122,20 @@ class _ChangePasswordScreenState
         return;
       }
 
-      await user.updatePassword(
-        password,
-      );
+      final credential =
+    EmailAuthProvider.credential(
+  email: user.email!,
+  password: oldPassword,
+);
+
+await user
+    .reauthenticateWithCredential(
+  credential,
+);
+
+await user.updatePassword(
+  password,
+);
 
       if (!mounted) return;
 
@@ -146,7 +163,15 @@ class _ChangePasswordScreenState
 
       String message =
           "❌ حدث خطأ";
+if (e.code ==
+        "wrong-password" ||
+    e.code ==
+        "invalid-credential") {
 
+  message =
+      "❌ كلمة المرور الحالية غير صحيحة";
+}
+   
       if (e.code ==
           "requires-recent-login") {
 
@@ -251,50 +276,88 @@ class _ChangePasswordScreenState
               const SizedBox(
                 height: 40,
               ),
+TextField(
 
-              // =========================
-              // PASSWORD
-              // =========================
+  controller:
+      oldPasswordController,
 
-              TextField(
+  obscureText:
+      obscureOldPassword,
 
-                controller:
-                    passwordController,
+  decoration:
+      InputDecoration(
 
-                obscureText:
-                    obscurePassword,
+    labelText:
+        "كلمة المرور الحالية",
 
-                decoration:
-                    InputDecoration(
+    prefixIcon:
+        const Icon(Icons.lock),
 
-                  labelText:
-                      "كلمة المرور الجديدة",
+    suffixIcon:
+        IconButton(
 
-                  suffixIcon:
-                      IconButton(
+      onPressed: () {
 
-                    onPressed: () {
+        setState(() {
 
-                      setState(() {
+          obscureOldPassword =
+              !obscureOldPassword;
+        });
+      },
 
-                        obscurePassword =
-                            !obscurePassword;
-                      });
-                    },
+      icon: Icon(
 
-                    icon: Icon(
+        obscureOldPassword
+            ? Icons.visibility
+            : Icons.visibility_off,
+      ),
+    ),
+  ),
+),
+const SizedBox(
+  height: 18,
+),
 
-                      obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                    ),
-                  ),
-                ),
-              ),
+TextField(
 
-              const SizedBox(
-                height: 18,
-              ),
+  controller:
+      passwordController,
+
+  obscureText:
+      obscurePassword,
+
+  decoration:
+      InputDecoration(
+
+    labelText:
+        "كلمة المرور الجديدة",
+
+    suffixIcon:
+        IconButton(
+
+      onPressed: () {
+
+        setState(() {
+
+          obscurePassword =
+              !obscurePassword;
+        });
+      },
+
+      icon: Icon(
+
+        obscurePassword
+            ? Icons.visibility
+            : Icons.visibility_off,
+      ),
+    ),
+  ),
+),
+
+const SizedBox(
+  height: 18,
+),
+             
 
               // =========================
               // CONFIRM PASSWORD

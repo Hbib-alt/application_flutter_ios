@@ -3,25 +3,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CasesScreen extends StatelessWidget {
+
   const CasesScreen({super.key});
 
   // ================= ROLE =================
 
   Future<String> getRole() async {
-    final user = FirebaseAuth.instance.currentUser;
+
+    final user =
+        FirebaseAuth
+            .instance
+            .currentUser;
 
     if (user == null) {
       return "user";
     }
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(user.uid)
-          .get();
 
-      return doc.data()?["role"] ?? "user";
+      final doc =
+          await FirebaseFirestore
+              .instance
+              .collection("users")
+              .doc(user.uid)
+              .get();
+
+      return doc.data()?["role"] ??
+          "user";
+
     } catch (e) {
+
       return "user";
     }
   }
@@ -30,75 +41,142 @@ class CasesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+
+      backgroundColor:
+          const Color(0xFFF5F6FA),
 
       appBar: AppBar(
-        title: const Text("العمليات"),
+
+        title: const Text(
+          "العمليات",
+        ),
+
         centerTitle: true,
       ),
 
-      body: FutureBuilder<String>(
+      body:
+          FutureBuilder<String>(
+
         future: getRole(),
 
-        builder: (context, roleSnapshot) {
+        builder: (
+          context,
+          roleSnapshot,
+        ) {
 
-          if (roleSnapshot.connectionState ==
+          if (roleSnapshot
+                  .connectionState ==
               ConnectionState.waiting) {
+
             return const Center(
-              child: CircularProgressIndicator(),
+
+              child:
+                  CircularProgressIndicator(),
             );
           }
 
-          final role = roleSnapshot.data ?? "user";
+          final role =
+              roleSnapshot.data ??
+                  "user";
 
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection("cases")
-                .orderBy("createdAt", descending: true)
-                .snapshots(),
+          return StreamBuilder<
+              QuerySnapshot>(
 
-            builder: (context, snapshot) {
+            stream:
+                FirebaseFirestore
+                    .instance
+                    .collection(
+                      "cases",
+                    )
+                    .where(
+                      "isDeleted",
+                      isEqualTo: false,
+                    )
+                    .orderBy(
+                      "createdAt",
+                      descending: true,
+                    )
+                    .snapshots(),
 
-              if (snapshot.connectionState ==
+            builder: (
+              context,
+              snapshot,
+            ) {
+
+              if (snapshot
+                      .connectionState ==
                   ConnectionState.waiting) {
+
                 return const Center(
-                  child: CircularProgressIndicator(),
+
+                  child:
+                      CircularProgressIndicator(),
                 );
               }
 
               if (snapshot.hasError) {
+
                 return Center(
+
                   child: Text(
+
                     "Erreur Firestore:\n${snapshot.error}",
                   ),
                 );
               }
 
               if (!snapshot.hasData ||
-                  snapshot.data!.docs.isEmpty) {
+                  snapshot.data!
+                      .docs
+                      .isEmpty) {
+
                 return const Center(
-                  child: Text("لا توجد عمليات"),
+
+                  child: Text(
+                    "لا توجد عمليات",
+                  ),
                 );
               }
 
-              final docs = snapshot.data!.docs;
+              final docs =
+                  snapshot.data!.docs;
 
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: docs.length,
 
-                itemBuilder: (context, index) {
+                padding:
+                    const EdgeInsets.all(
+                  16,
+                ),
 
-                  final doc = docs[index];
+                itemCount:
+                    docs.length,
+
+                itemBuilder:
+                    (
+                  context,
+                  index,
+                ) {
+
+                  final doc =
+                      docs[index];
 
                   final data =
-                      doc.data() as Map<String, dynamic>? ?? {};
+                      doc.data()
+                              as Map<
+                                  String,
+                                  dynamic>? ??
+                          {};
 
                   return _caseCard(
+
                     context,
+
                     doc.id,
+
                     data,
+
                     role,
                   );
                 },
@@ -108,21 +186,31 @@ class CasesScreen extends StatelessWidget {
         },
       ),
 
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF0057FF),
+      floatingActionButton:
+          FloatingActionButton(
+
+        backgroundColor:
+            const Color(0xFF0057FF),
 
         onPressed: () {
-          _showAddDialog(context);
+
+          _showAddDialog(
+            context,
+          );
         },
 
-        child: const Icon(Icons.add),
+        child: const Icon(
+          Icons.add,
+        ),
       ),
     );
   }
 
   // ================= STATUS COLOR =================
 
-  Color statusColor(String status) {
+  Color statusColor(
+    String status,
+  ) {
 
     switch (status) {
 
@@ -140,200 +228,331 @@ class CasesScreen extends StatelessWidget {
   // ================= CARD =================
 
   Widget _caseCard(
+
     BuildContext context,
+
     String id,
+
     Map<String, dynamic> data,
+
     String role,
   ) {
 
     final title =
-    data["name"]?.toString() ??
-    data["title"]?.toString() ??
-    "Sans titre";
+        data["name"]
+                ?.toString() ??
+            data["title"]
+                ?.toString() ??
+            "Sans titre";
 
-final description =
-    data["description"]?.toString() ??
-    data["purpose"]?.toString() ??
-    "";
+    final description =
+        data["description"]
+                ?.toString() ??
+            data["purpose"]
+                ?.toString() ??
+            "";
 
-final status =
-    data["status"]?.toString() ??
-    "pending";
+    final status =
+        data["status"]
+                ?.toString() ??
+            "pending";
 
-final amount =
-    (data["amount"] ?? 0).toString();
+    final amount =
+        (data["amount"] ?? 0)
+            .toString();
 
-final paymentType =
-    data["paymentType"]?.toString() ??
-    data["type"]?.toString() ??
-    "";
+    final paymentType =
+        data["paymentType"]
+                ?.toString() ??
+            data["type"]
+                ?.toString() ??
+            "";
 
-    final isAdmin = role == "admin";
+    final isAdmin =
+        role == "admin";
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
 
-      padding: const EdgeInsets.all(16),
+      margin:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
 
-      decoration: BoxDecoration(
+      padding:
+          const EdgeInsets.all(
+        16,
+      ),
+
+      decoration:
+          BoxDecoration(
+
         color: Colors.white,
 
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(
+          18,
+        ),
 
         boxShadow: const [
+
           BoxShadow(
-            color: Colors.black12,
+
+            color:
+                Colors.black12,
+
             blurRadius: 8,
           ),
         ],
       ),
 
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+
+        crossAxisAlignment:
+            CrossAxisAlignment
+                .start,
 
         children: [
 
-          // 📌 TITRE
           Text(
+
             title,
 
-            style: const TextStyle(
+            style:
+                const TextStyle(
+
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
-          // 📝 DESCRIPTION
-          if (description.isNotEmpty)
-            Text(description),
+          if (description
+              .isNotEmpty)
 
-          const SizedBox(height: 10),
-
-          // 💰 MONTANT
-          if (amount != "0")
             Text(
+              description,
+            ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          if (amount != "0")
+
+            Text(
+
               "Montant : $amount",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
+
+              style:
+                  const TextStyle(
+
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
-          // 📂 TYPE
-          if (paymentType.isNotEmpty)
-            Text("Type : $paymentType"),
+          if (paymentType
+              .isNotEmpty)
 
-          const SizedBox(height: 10),
+            Text(
+              "Type : $paymentType",
+            ),
 
-          // 🚦 STATUS
+          const SizedBox(
+            height: 10,
+          ),
+
           Text(
+
             "Status : $status",
 
             style: TextStyle(
-              color: statusColor(status),
-              fontWeight: FontWeight.bold,
+
+              color:
+                  statusColor(
+                status,
+              ),
+
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(
+            height: 12,
+          ),
 
           Wrap(
+
             spacing: 10,
+
             runSpacing: 10,
 
             children: [
 
-              // ✅ APPROUVER
-              if (isAdmin && status == "submitted")
+              // ================= APPROVE =================
+
+              if (isAdmin &&
+                  status ==
+                      "submitted")
+
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+
+                  style:
+                      ElevatedButton
+                          .styleFrom(
+
+                    backgroundColor:
+                        Colors.green,
                   ),
 
-                  onPressed: () async {
+                  onPressed:
+                      () async {
 
                     try {
 
-                      await FirebaseFirestore.instance
-                          .collection("cases")
+                      await FirebaseFirestore
+                          .instance
+                          .collection(
+                            "cases",
+                          )
                           .doc(id)
                           .update({
-                        "status": "approved",
+
+                        "status":
+                            "approved",
                       });
 
                     } catch (e) {
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+
                         SnackBar(
-                          content: Text("Erreur: $e"),
+
+                          content: Text(
+                            "Erreur: $e",
+                          ),
                         ),
                       );
                     }
                   },
 
-                  child: const Text("✔ Approuver"),
+                  child: const Text(
+                    "✔ Approuver",
+                  ),
                 ),
 
-              // ✏️ EDIT
-              if (isAdmin && status != "paid")
+              // ================= EDIT =================
+
+              if (isAdmin &&
+                  status !=
+                      "paid")
+
                 IconButton(
+
                   icon: const Icon(
+
                     Icons.edit,
-                    color: Colors.blue,
+
+                    color:
+                        Colors.blue,
                   ),
 
                   onPressed: () {
+
                     _showEditDialog(
+
                       context,
+
                       id,
+
                       data,
                     );
                   },
                 ),
 
-              // 🗑 DELETE
+              // ================= DELETE =================
+
               if (isAdmin)
+
                 IconButton(
+
                   icon: const Icon(
+
                     Icons.delete,
-                    color: Colors.red,
+
+                    color:
+                        Colors.red,
                   ),
 
-                  onPressed: () async {
+                  onPressed:
+                      () async {
 
                     try {
 
-                      await FirebaseFirestore.instance
-                          .collection("cases")
+                      await FirebaseFirestore
+                          .instance
+                          .collection(
+                            "cases",
+                          )
                           .doc(id)
-                          .delete();
+                          .update({
+
+                        "isDeleted":
+                            true,
+                      });
 
                     } catch (e) {
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+
                         SnackBar(
-                          content: Text("Erreur: $e"),
+
+                          content: Text(
+                            "Erreur: $e",
+                          ),
                         ),
                       );
                     }
                   },
                 ),
 
-              // 💰 PAYER
-              if (isAdmin && status == "approved")
+              // ================= PAY =================
+
+              if (isAdmin &&
+                  status ==
+                      "approved")
+
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
+
+                  style:
+                      ElevatedButton
+                          .styleFrom(
+
+                    backgroundColor:
+                        Colors.purple,
                   ),
 
                   onPressed: () {
-                    _payCase(context, id);
+
+                    _payCase(
+                      context,
+                      id,
+                    );
                   },
 
-                  child: const Text("💰 Payer"),
+                  child: const Text(
+                    "💰 Payer",
+                  ),
                 ),
             ],
           ),
@@ -344,7 +563,9 @@ final paymentType =
 
   // ================= ADD =================
 
-  void _showAddDialog(BuildContext context) {
+  void _showAddDialog(
+    BuildContext context,
+  ) {
 
     final titleController =
         TextEditingController();
@@ -353,30 +574,45 @@ final paymentType =
         TextEditingController();
 
     showDialog(
+
       context: context,
 
       builder: (_) => AlertDialog(
 
-        title: const Text("Nouvelle opération"),
+        title: const Text(
+          "Nouvelle opération",
+        ),
 
         content: Column(
-          mainAxisSize: MainAxisSize.min,
+
+          mainAxisSize:
+              MainAxisSize.min,
 
           children: [
 
             TextField(
-              controller: titleController,
 
-              decoration: const InputDecoration(
-                labelText: "Titre",
+              controller:
+                  titleController,
+
+              decoration:
+                  const InputDecoration(
+
+                labelText:
+                    "Titre",
               ),
             ),
 
             TextField(
-              controller: descController,
 
-              decoration: const InputDecoration(
-                labelText: "Description",
+              controller:
+                  descController,
+
+              decoration:
+                  const InputDecoration(
+
+                labelText:
+                    "Description",
               ),
             ),
           ],
@@ -385,60 +621,94 @@ final paymentType =
         actions: [
 
           TextButton(
+
             onPressed: () {
-              Navigator.pop(context);
+
+              Navigator.pop(
+                context,
+              );
             },
 
-            child: const Text("Annuler"),
+            child: const Text(
+              "Annuler",
+            ),
           ),
 
           ElevatedButton(
-            onPressed: () async {
 
-              if (titleController.text
+            onPressed:
+                () async {
+
+              if (titleController
+                  .text
                   .trim()
                   .isEmpty) {
+
                 return;
               }
 
               final user =
-                  FirebaseAuth.instance.currentUser;
+                  FirebaseAuth
+                      .instance
+                      .currentUser;
 
               try {
 
-                await FirebaseFirestore.instance
-                    .collection("cases")
+                await FirebaseFirestore
+                    .instance
+                    .collection(
+                      "cases",
+                    )
                     .add({
 
                   "title":
-                      titleController.text.trim(),
+                      titleController
+                          .text
+                          .trim(),
 
                   "description":
-                      descController.text.trim(),
+                      descController
+                          .text
+                          .trim(),
 
-                  "status": "submitted",
+                  "status":
+                      "submitted",
+
+                  "isDeleted":
+                      false,
 
                   "userId":
-                      user?.uid ?? "",
+                      user?.uid ??
+                          "",
 
                   "createdAt":
-                      FieldValue.serverTimestamp(),
+                      FieldValue
+                          .serverTimestamp(),
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(
+                  context,
+                );
 
               } catch (e) {
 
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+
                   SnackBar(
-                    content: Text("Erreur: $e"),
+
+                    content: Text(
+                      "Erreur: $e",
+                    ),
                   ),
                 );
               }
             },
 
-            child: const Text("Ajouter"),
+            child: const Text(
+              "Ajouter",
+            ),
           ),
         ],
       ),
@@ -448,39 +718,57 @@ final paymentType =
   // ================= EDIT =================
 
   void _showEditDialog(
+
     BuildContext context,
+
     String id,
+
     Map<String, dynamic> data,
   ) {
 
     final titleController =
         TextEditingController(
-      text: data["title"]?.toString() ?? "",
+
+      text:
+          data["title"]
+                  ?.toString() ??
+              "",
     );
 
     final descController =
         TextEditingController(
-      text: data["description"]?.toString() ?? "",
+
+      text:
+          data["description"]
+                  ?.toString() ??
+              "",
     );
 
     showDialog(
+
       context: context,
 
       builder: (_) => AlertDialog(
 
-        title: const Text("Modifier"),
+        title: const Text(
+          "Modifier",
+        ),
 
         content: Column(
-          mainAxisSize: MainAxisSize.min,
+
+          mainAxisSize:
+              MainAxisSize.min,
 
           children: [
 
             TextField(
-              controller: titleController,
+              controller:
+                  titleController,
             ),
 
             TextField(
-              controller: descController,
+              controller:
+                  descController,
             ),
           ],
         ),
@@ -488,47 +776,72 @@ final paymentType =
         actions: [
 
           TextButton(
+
             onPressed: () {
-              Navigator.pop(context);
+
+              Navigator.pop(
+                context,
+              );
             },
 
-            child: const Text("Annuler"),
+            child: const Text(
+              "Annuler",
+            ),
           ),
 
           ElevatedButton(
-            onPressed: () async {
+
+            onPressed:
+                () async {
 
               try {
 
-                await FirebaseFirestore.instance
-                    .collection("cases")
+                await FirebaseFirestore
+                    .instance
+                    .collection(
+                      "cases",
+                    )
                     .doc(id)
                     .update({
 
                   "title":
-                      titleController.text.trim(),
+                      titleController
+                          .text
+                          .trim(),
 
                   "description":
-                      descController.text.trim(),
+                      descController
+                          .text
+                          .trim(),
 
                   "updatedAt":
-                      FieldValue.serverTimestamp(),
+                      FieldValue
+                          .serverTimestamp(),
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(
+                  context,
+                );
 
               } catch (e) {
 
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+
                   SnackBar(
-                    content: Text("Erreur: $e"),
+
+                    content: Text(
+                      "Erreur: $e",
+                    ),
                   ),
                 );
               }
             },
 
-            child: const Text("Sauvegarder"),
+            child: const Text(
+              "Sauvegarder",
+            ),
           ),
         ],
       ),
@@ -538,78 +851,162 @@ final paymentType =
   // ================= PAYMENT =================
 
   Future<void> _payCase(
+
     BuildContext context,
+
     String caseId,
   ) async {
 
     try {
 
-      final caseRef = FirebaseFirestore.instance
-          .collection("cases")
-          .doc(caseId);
+      final firestore =
+          FirebaseFirestore
+              .instance;
 
-      final financeRef = FirebaseFirestore.instance
-          .collection("finance")
-          .doc("main");
+      final caseRef =
+          firestore
+              .collection(
+                "cases",
+              )
+              .doc(caseId);
 
-      final caseSnap = await caseRef.get();
+      final caseSnap =
+          await caseRef.get();
+
+      if (!caseSnap.exists) {
+
+        throw Exception(
+          "الحالة غير موجودة",
+        );
+      }
 
       final data =
-          caseSnap.data() as Map<String, dynamic>? ?? {};
+          caseSnap.data()
+              as Map<String,
+                  dynamic>? ??
+              {};
+
+      final currentStatus =
+          data["status"]
+                  ?.toString() ??
+              "";
+
+      if (currentStatus ==
+          "paid") {
+
+        throw Exception(
+          "تم دفع الحالة مسبقاً",
+        );
+      }
 
       final amount =
-          (data["amount"] ?? 1000);
+          double.tryParse(
 
-      final financeSnap =
-          await financeRef.get();
+                data["amount"]
+                    .toString(),
+              ) ??
+              0;
 
-      final financeData =
-          financeSnap.data() as Map<String, dynamic>? ?? {};
+      if (amount <= 0) {
 
-      final currentBalance =
-          financeData["balance"] ?? 0;
+        throw Exception(
+          "المبلغ غير صالح",
+        );
+      }
 
-      final newBalance =
-          currentBalance - amount;
+      final batch =
+          firestore.batch();
 
-      // 💰 update balance
-      await financeRef.set({
+      final transactionRef =
+          firestore
+              .collection(
+                "transactions",
+              )
+              .doc();
 
-        "balance": newBalance,
+      batch.set(
+        transactionRef,
+        {
 
-      }, SetOptions(merge: true));
+          "amount":
+              amount,
 
-      // 🧾 transaction
-      await FirebaseFirestore.instance
-          .collection("transactions")
-          .add({
+          "type":
+              "remove",
 
-        "amount": amount,
-        "type": "payment",
-        "caseId": caseId,
+          "paymentType":
+              "case_payment",
 
-        "createdAt":
-            FieldValue.serverTimestamp(),
-      });
+          "caseId":
+              caseId,
 
-      // ✅ update status
-      await caseRef.update({
-        "status": "paid",
-      });
+          "caseName":
+              data["title"] ??
+                  data["name"] ??
+                  "",
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+          "purpose":
+              data["description"] ??
+                  "",
+
+          "status":
+              "paid",
+
+          "isDeleted":
+              false,
+
+          "createdAt":
+              FieldValue
+                  .serverTimestamp(),
+        },
+      );
+
+      batch.update(
+        caseRef,
+        {
+
+          "status":
+              "paid",
+
+          "paidAt":
+              FieldValue
+                  .serverTimestamp(),
+        },
+      );
+
+      await batch.commit();
+
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+
         const SnackBar(
-          content: Text("✅ Paiement effectué"),
+
+          content: Text(
+            "✅ تم الدفع بنجاح",
+          ),
         ),
       );
 
     } catch (e) {
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+
         SnackBar(
-          content: Text("Erreur paiement: $e"),
+
+          content: Text(
+            "Erreur paiement: $e",
+          ),
         ),
       );
     }

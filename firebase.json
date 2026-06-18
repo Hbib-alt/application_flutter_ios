@@ -4,6 +4,7 @@
       "codebase": "default",
       "source": "functions",
       "disallowLegacyRuntimeConfig": true,
+
       "ignore": [
         "node_modules",
         ".git",
@@ -11,9 +12,15 @@
         "firebase-debug.*.log",
         "*.local"
       ],
+
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
-  ]
+  ],
+
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
 }

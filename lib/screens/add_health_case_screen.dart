@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/health_case_notification_service.dart';
 
 class AddHealthCaseScreen extends StatefulWidget {
   const AddHealthCaseScreen({super.key});
@@ -116,17 +117,17 @@ class _AddHealthCaseScreenState
 
         case "surgery":
 
-          amount = 50000;
+          amount = 5000;
           break;
 
         case "hospitalization":
 
-          amount = 30000;
+          amount = 3000;
           break;
 
         case "dialysis":
 
-          amount = 20000;
+          amount = 2000;
           break;
 
         case "chronic":
@@ -226,57 +227,58 @@ class _AddHealthCaseScreenState
           _normalizePhone(phoneController.text);
 
       // 💾 SAVE FIRESTORE
-      await FirebaseFirestore.instance
-          .collection("health_cases")
-          .add({
+      final docRef =
+    await FirebaseFirestore.instance
+        .collection("health_cases")
+        .add({
 
-        // 👤 USER
-        "reportedBy": user.uid,
+  "reportedBy": user.uid,
 
-        // 📌 BENEFICIARY
-        "fullName":
-            fullNameController.text.trim(),
+  "fullName":
+      fullNameController.text.trim(),
 
-        "phone": phone,
+  "phone": phone,
 
-        // 📝 DESCRIPTION
-        "description":
-            descriptionController.text.trim(),
+  "description":
+      descriptionController.text.trim(),
 
-        // 🏥 MEDICAL
-        "healthCaseType":
-            healthCaseType,
+  "healthCaseType":
+      healthCaseType,
 
-        "hospitalName":
-            hospitalController.text.trim(),
+  "hospitalName":
+      hospitalController.text.trim(),
 
-        // 🌍 PLACE
-        "treatmentPlace":
-            treatmentPlace,
+  "treatmentPlace":
+      treatmentPlace,
 
-        // 🛡 INSURANCE
-        "hasInsurance":
-            hasInsurance,
+  "hasInsurance":
+      hasInsurance,
 
-        // ⚙ PROCEDURE
-        "procedureType":
-            procedureType,
+  "procedureType":
+      procedureType,
 
-        // 💰 SUGGESTED AMOUNT
-        "suggestedAmount":
-            suggestedAmount,
+  "suggestedAmount":
+      suggestedAmount,
 
-        // 👥 COMMITTEE
-        "votes": [],
-        "votesCount": 0,
+  "votes": [],
 
-        // 🚦 STATUS
-        "status": "submitted",
+  "votesCount": 0,
 
-        // ⏱ DATE
-        "createdAt":
-            FieldValue.serverTimestamp(),
-      });
+  "status": "submitted",
+
+  "createdAt":
+      FieldValue.serverTimestamp(),
+
+  "isDeleted": false,
+});
+
+await HealthCaseNotificationService
+    .notifyCommittee(
+  title: "📢 حالة صحية جديدة",
+  body:
+      "تم الإعلان عن حالة جديدة باسم ${fullNameController.text.trim()}",
+  caseId: docRef.id,
+);
 
       // ✅ SUCCESS
       if (mounted) {
@@ -383,14 +385,25 @@ class _AddHealthCaseScreenState
 
                 validator: (value) {
 
-                  if (value == null ||
-                      value.trim().length < 6) {
+  if (value == null ||
+      value.trim().isEmpty) {
 
-                    return "رقم الهاتف غير صالح";
-                  }
+    return "أدخل رقم الهاتف";
+  }
 
-                  return null;
-                },
+  final phone =
+      value.trim().replaceAll(" ", "");
+
+  if (!RegExp(r'^[234]\d{7}$')
+      .hasMatch(phone)) {
+
+    return "رقم هاتف موريتاني غير صحيح";
+  }
+
+  return null;
+},
+
+               
               ),
 
               const SizedBox(height: 12),
@@ -537,18 +550,25 @@ class _AddHealthCaseScreenState
 
               // 🏥 HOSPITAL
               TextFormField(
-                controller:
-                    hospitalController,
+  controller: hospitalController,
 
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      "اسم المستشفى",
+  decoration:
+      const InputDecoration(
+    labelText: "اسم المستشفى",
+    border: OutlineInputBorder(),
+  ),
 
-                  border:
-                      OutlineInputBorder(),
-                ),
-              ),
+  validator: (value) {
+
+    if (value == null ||
+        value.trim().isEmpty) {
+
+      return "يجب إدخال اسم المستشفى";
+    }
+
+    return null;
+  },
+),
 
               const SizedBox(height: 12),
 
@@ -614,7 +634,7 @@ class _AddHealthCaseScreenState
 
                       suggestedAmount > 0
 
-                          ? "المبلغ المقترح حسب المسطرة: $suggestedAmount أوقية قديمة"
+                          ? "المبلغ المقترح حسب المسطرة: $suggestedAmount أوقية جديدة"
 
                           : "المبلغ يحدد لاحقاً حسب قرار اللجنة",
 

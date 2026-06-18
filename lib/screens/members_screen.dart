@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'member_details_screen.dart';
 
 class MembersScreen extends StatefulWidget {
 
@@ -49,11 +50,10 @@ class _MembersScreenState
 
     // ================= OPERATIONS =================
 
-    final operationsSnapshot =
-        await FirebaseFirestore
-            .instance
-            .collection("operations")
-            .get();
+   final statsSnapshot =
+    await FirebaseFirestore.instance
+        .collection("subscription_stats")
+        .get();
 
     // ================= CALCULATE =================
 
@@ -69,88 +69,65 @@ class _MembersScreenState
       final personId =
           person.id;
 
-      int totalMonths = 0;
-
-      for (var operation
-          in operationsSnapshot.docs) {
-
-        final op =
-            operation.data();
-
-        if (op["personId"] ==
-                personId &&
-            op["paymentType"] ==
-                "monthly" &&
-            op["year"] ==
-                currentYear) {
-
-          totalMonths +=
-              ((op["months"] ?? 1)
-                      as num)
-                  .toInt();
-        }
-      }
+      
 
       // ================= STATUS =================
 
-      String status = "";
+      final matches =
+    statsSnapshot.docs.where(
+  (e) => e.id == personId,
+).toList();
 
-      Color statusColor =
-          Colors.green;
+if (matches.isEmpty) {
+  continue;
+}
 
-      // ✅ payé toute l'année
+final stats =
+    matches.first.data();
+final paidMonths =
+    List<int>.from(
+  stats["paidMonthsList"] ?? [],
+);
+final missingMonths =
+    List<int>.from(
+  stats["missingMonths"] ?? [],
+);
 
-      if (totalMonths >= 12) {
 
-        status =
-            "🟢 مكتمل السنة";
 
-        statusColor =
-            Colors.green;
-      }
+final futureMonths =
+    paidMonths
+        .where(
+          (m) => m > currentMonth,
+        )
+        .toList()
+      ..sort();
 
-      // ✅ en retard
+String status = "";
+Color statusColor = Colors.green;
 
-      else if (totalMonths <
-          currentMonth) {
+if (missingMonths.isNotEmpty) {
 
-        final remaining =
-            currentMonth -
-                totalMonths;
+  status =
+      "🔴 متأخر ${missingMonths.length} شهر";
 
-        status =
-            "🔴 متأخر $remaining شهر";
+  statusColor = Colors.red;
 
-        statusColor =
-            Colors.red;
-      }
+} else if (futureMonths.isNotEmpty) {
 
-      // ✅ exactement à jour
+  status =
+      "🔵 مسبق ${futureMonths.length} شهر";
 
-      else if (totalMonths ==
-          currentMonth) {
+  statusColor = Colors.blue;
 
-        status =
-            "🟢 في المستوى";
+} else {
 
-        statusColor =
-            Colors.green;
-      }
+  status =
+      "🟢 في المستوى";
 
-      // ✅ en avance
-
-      else {
-
-        final advance =
-            totalMonths -
-                currentMonth;
-
-        status =
-            "🔵 مسبق $advance شهر";
-
-        statusColor =
-            Colors.blue;
-      }
+  statusColor = Colors.green;
+}
+      
 
       final name =
           personData["name"] ?? "";
@@ -177,15 +154,17 @@ class _MembersScreenState
 
       members.add({
 
-        "name": name,
+  "personId": personId,
 
-        "phone": phone,
+  "name": name,
 
-        "status": status,
+  "phone": phone,
 
-        "statusColor":
-            statusColor,
-      });
+  "status": status,
+
+  "statusColor":
+      statusColor,
+});
     }
 
     return members;
@@ -365,7 +344,23 @@ class _MembersScreenState
 
                       child:
                           ListTile(
+onTap: () {
 
+  Navigator.push(
+
+    context,
+
+    MaterialPageRoute(
+
+      builder: (_) =>
+          MemberDetailsScreen(
+
+        personId:
+            member["personId"],
+      ),
+    ),
+  );
+},
                         contentPadding:
                             const EdgeInsets
                                 .all(16),

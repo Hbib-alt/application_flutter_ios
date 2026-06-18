@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/firestore_service.dart';
-
 import '../utils/workflow.dart';
 
-class DashboardScreen
-    extends StatelessWidget {
-
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
     super.key,
   });
@@ -14,47 +12,34 @@ class DashboardScreen
   // ================= CARD =================
 
   Widget buildCard({
-
     required String title,
-
-    required int value,
-
+    required String value,
     required Color color,
-
     required IconData icon,
-
   }) {
-
     return Container(
-
-      padding:
-          const EdgeInsets.all(
+      padding: const EdgeInsets.all(
         18,
       ),
 
       decoration: BoxDecoration(
-
         color: Colors.white,
 
         borderRadius:
             BorderRadius.circular(
-          20,
+          22,
         ),
 
         boxShadow: [
-
           BoxShadow(
-
             color:
-                Colors.black
-                    .withOpacity(
+                Colors.black.withOpacity(
               0.05,
             ),
 
-            blurRadius: 10,
+            blurRadius: 12,
 
-            offset:
-                const Offset(
+            offset: const Offset(
               0,
               4,
             ),
@@ -63,15 +48,14 @@ class DashboardScreen
       ),
 
       child: Column(
-
         mainAxisAlignment:
             MainAxisAlignment.center,
 
         children: [
 
+          /// ICON
           CircleAvatar(
-
-            radius: 28,
+            radius: 30,
 
             backgroundColor:
                 color.withOpacity(
@@ -79,55 +63,46 @@ class DashboardScreen
             ),
 
             child: Icon(
-
               icon,
-
               color: color,
-
-              size: 28,
+              size: 30,
             ),
           ),
 
           const SizedBox(
-            height: 14,
+            height: 16,
           ),
 
-          Text(
-
-            value.toString(),
-
-            style:
-                const TextStyle(
-
-              fontSize: 28,
-
-              fontWeight:
-                  FontWeight.bold,
-            ),
-          ),
+          /// VALUE
+         FittedBox(
+  fit: BoxFit.scaleDown,
+  child: Text(
+    value,
+    textAlign: TextAlign.center,
+    maxLines: 2,
+    style: const TextStyle(
+      fontSize: 30,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+),
 
           const SizedBox(
-            height: 8,
+            height: 10,
           ),
 
-          Text(
-
-            title,
-
-            textAlign:
-                TextAlign.center,
-
-            style:
-                TextStyle(
-
-              color:
-                  Colors.grey
-                      .shade700,
-
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
+          /// TITLE
+         Text(
+  title,
+  textAlign: TextAlign.center,
+  maxLines: 3,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    color: Colors.grey.shade700,
+    fontWeight: FontWeight.w600,
+    fontSize: 15,
+  ),
+),
         ],
       ),
     );
@@ -139,16 +114,13 @@ class DashboardScreen
   Widget build(
     BuildContext context,
   ) {
-
     return Scaffold(
-
       backgroundColor:
           const Color(
         0xFFF5F6FA,
       ),
 
       appBar: AppBar(
-
         title: const Text(
           "📊 Dashboard",
         ),
@@ -156,26 +128,50 @@ class DashboardScreen
         centerTitle: true,
       ),
 
-      body: StreamBuilder(
+      body:
+          StreamBuilder<QuerySnapshot>(
 
         stream:
             FirestoreService
                 .getCases(),
 
-        builder:
-            (
-              context,
-              snapshot,
-            ) {
+        builder: (
+          context,
+          snapshot,
+        ) {
 
           // ================= LOADING =================
 
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState ==
+              ConnectionState
+                  .waiting) {
 
             return const Center(
-
               child:
                   CircularProgressIndicator(),
+            );
+          }
+
+          // ================= ERROR =================
+
+          if (snapshot.hasError) {
+
+            return Center(
+              child: Text(
+                "Erreur : ${snapshot.error}",
+              ),
+            );
+          }
+
+          // ================= EMPTY =================
+
+          if (!snapshot.hasData ||
+              snapshot.data == null) {
+
+            return const Center(
+              child: Text(
+                "لا توجد بيانات",
+              ),
             );
           }
 
@@ -186,91 +182,75 @@ class DashboardScreen
 
           int total = 0;
 
-          int submitted = 0;
+int submitted = 0;
 
-          int underReview = 0;
+int paid = 0;
 
-          int committeeApproved = 0;
+int standardCases = 0;
 
-          int approved = 0;
+int committeeCases = 0;
 
-          int discretionary = 0;
+int exceptionalCases = 0;
 
-          int paid = 0;
+double totalPaidAmount = 0;
 
-          int rejected = 0;
+total = cases.docs.length;
 
-          total = cases.length;
+for (var c in cases.docs) {
 
-          for (var c in cases) {
+  final data =
+      c.data()
+          as Map<String, dynamic>;
 
-            final status =
-                c["status"]
-                        ?.toString() ??
-                    Workflow
-                        .submitted;
+  final status =
+      data["status"]
+              ?.toString() ??
+          "";
 
-            if (status ==
-                Workflow
-                    .submitted) {
+  final procedureType =
+      data["procedureType"]
+              ?.toString() ??
+          "";
 
-              submitted++;
-            }
+  if (status ==
+      Workflow.submitted) {
+    submitted++;
+  }
 
-            if (status ==
-                Workflow
-                    .underReview) {
+  if (status ==
+      Workflow.paid) {
 
-              underReview++;
-            }
+    paid++;
 
-            if (status ==
-                Workflow
-                    .committeeApproved) {
+    totalPaidAmount +=
+        (data["paidAmount"] ?? 0)
+            .toDouble();
+  }
 
-              committeeApproved++;
-            }
+  if (procedureType ==
+      "standard_procedure") {
+    standardCases++;
+  }
 
-            if (status ==
-                Workflow
-                    .approved) {
+  if (procedureType ==
+      "committee_evaluation") {
+    committeeCases++;
+  }
 
-              approved++;
-            }
-
-            if (status ==
-                Workflow
-                    .discretionarySupport) {
-
-              discretionary++;
-            }
-
-            if (status ==
-                Workflow
-                    .paid) {
-
-              paid++;
-            }
-
-            if (status ==
-                Workflow
-                    .rejected) {
-
-              rejected++;
-            }
-          }
-
+  if (procedureType ==
+      "exceptional_case") {
+    exceptionalCases++;
+  }
+}
           // ================= GRID =================
 
           return Padding(
-
             padding:
                 const EdgeInsets.all(
               16,
             ),
 
             child: GridView.count(
-
               crossAxisCount: 2,
 
               crossAxisSpacing:
@@ -279,146 +259,54 @@ class DashboardScreen
               mainAxisSpacing:
                   14,
 
-              childAspectRatio:
-                  1.05,
+             childAspectRatio: 0.90,
 
-              children: [
+             children: [
 
-                // ================= TOTAL =================
+  buildCard(
+  title: "إجمالي الحالات ",
+  value: total.toString(),
+  color: Colors.grey,
+  icon: Icons.folder,
+),
 
-                buildCard(
+ buildCard(
+  title: "عدد الحلات قيد الدراسة",
+  value: submitted.toString(),
+  color: Colors.orange,
+  icon: Icons.hourglass_top,
+),
 
-                  title:
-                      "إجمالي الملفات",
+buildCard(
+  title: "عدد الحلات المعوضة",
+  value: paid.toString(),
+  color: Colors.green,
+  icon: Icons.payments,
+),
 
-                  value: total,
+buildCard(
+  title: "العدد حسب المسطرة العادية",
+  value: standardCases.toString(),
+  color: Colors.blue,
+  icon: Icons.description,
+),
 
-                  color:
-                      Colors.grey,
 
-                  icon:
-                      Icons.folder,
-                ),
 
-                // ================= SUBMITTED =================
+buildCard(
+  title: "العدد حسب الدعم الاستثنائي",
+  value: exceptionalCases.toString(),
+  color: Colors.purple,
+  icon: Icons.star,
+),
 
-                buildCard(
-
-                  title:
-                      "قيد الدراسة",
-
-                  value:
-                      submitted,
-
-                  color:
-                      Colors.orange,
-
-                  icon:
-                      Icons.hourglass_top,
-                ),
-
-                // ================= REVIEW =================
-
-                buildCard(
-
-                  title:
-                      "تحت المراجعة",
-
-                  value:
-                      underReview,
-
-                  color:
-                      Colors.blue,
-
-                  icon:
-                      Icons.search,
-                ),
-
-                // ================= COMMITTEE =================
-
-                buildCard(
-
-                  title:
-                      "موافقة اللجنة",
-
-                  value:
-                      committeeApproved,
-
-                  color:
-                      Colors.teal,
-
-                  icon:
-                      Icons.groups,
-                ),
-
-                // ================= APPROVED =================
-
-                buildCard(
-
-                  title:
-                      "مقبولة",
-
-                  value:
-                      approved,
-
-                  color:
-                      Colors.green,
-
-                  icon:
-                      Icons.check_circle,
-                ),
-
-                // ================= DISCRETIONARY =================
-
-                buildCard(
-
-                  title:
-                      "دعم استثنائي",
-
-                  value:
-                      discretionary,
-
-                  color:
-                      Colors.purple,
-
-                  icon:
-                      Icons.star,
-                ),
-
-                // ================= PAID =================
-
-                buildCard(
-
-                  title:
-                      "تم الدفع",
-
-                  value:
-                      paid,
-
-                  color:
-                      Colors.indigo,
-
-                  icon:
-                      Icons.payments,
-                ),
-
-                // ================= REJECTED =================
-
-                buildCard(
-
-                  title:
-                      "مرفوضة",
-
-                  value:
-                      rejected,
-
-                  color:
-                      Colors.red,
-
-                  icon:
-                      Icons.cancel,
-                ),
-              ],
+  buildCard(
+  title: "إجمالي المبالغ المصروفة",
+  value: totalPaidAmount.toInt().toString(),
+  color: Colors.red,
+  icon: Icons.account_balance_wallet,
+),
+],
             ),
           );
         },

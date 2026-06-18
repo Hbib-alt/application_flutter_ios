@@ -19,133 +19,64 @@ class _LatePeopleScreenState
 
     // ================= CURRENT DATE =================
 
-    final currentMonth =
-        DateTime.now().month;
-
-    final currentYear =
-        DateTime.now().year;
-
-    // ================= CURRENT USER =================
-
     final currentUserId =
-        FirebaseAuth
-            .instance
-            .currentUser!
-            .uid;
+    FirebaseAuth.instance.currentUser!.uid;
 
-    // ================= PEOPLE OF COLLECTOR =================
+final peopleSnapshot =
+    await FirebaseFirestore.instance
+        .collection("people")
+        .where(
+          "collectorId",
+          isEqualTo: currentUserId,
+        )
+        .get();
 
-    final peopleSnapshot =
-        await FirebaseFirestore
-            .instance
-            .collection("people")
-            .where(
-              "collectorId",
-              isEqualTo:
-                  currentUserId,
-            )
-            .get();
+final statsSnapshot =
+    await FirebaseFirestore.instance
+        .collection("subscription_stats")
+        .get();
 
-    // ================= MONTHLY PAYMENTS =================
+List<Map<String, dynamic>>
+    latePeople = [];
 
-    final paymentsSnapshot =
-        await FirebaseFirestore
-            .instance
-            .collection("operations")
-            .where(
-              "paymentType",
-              isEqualTo:
-                  "monthly",
-            )
-            .where(
-              "year",
-              isEqualTo:
-                  currentYear,
-            )
-            .get();
+for (final personDoc
+    in peopleSnapshot.docs) {
 
-    // ================= COUNT MONTHS =================
+  final matches =
+    statsSnapshot.docs.where(
+  (e) => e.id == personDoc.id,
+).toList();
 
-    Map<String, int>
-        paidMonths = {};
+if (matches.isEmpty) {
+  continue;
+}
 
-    for (var doc
-        in paymentsSnapshot.docs) {
+final stats =
+    matches.first.data();
 
-      final data =
-          doc.data();
+  final missingMonths =
+      List<int>.from(
+    stats["missingMonths"] ?? [],
+  );
 
-      final personId =
-          data["personId"];
+  if (missingMonths.isEmpty) {
+    continue;
+  }
 
-      final int months =
-          ((data["months"] ??
-                      1)
-                  as num)
-              .toInt();
+  latePeople.add({
 
-      if (paidMonths
-          .containsKey(
-              personId)) {
+    "name":
+        personDoc["name"],
 
-        paidMonths[personId] =
-            paidMonths[
-                    personId]! +
-                months;
+    "phone":
+        personDoc["phone"],
 
-      } else {
+    "remaining":
+        missingMonths.length,
+  });
+}
 
-        paidMonths[personId] =
-            months;
-      }
-    }
-
-    // ================= LATE PEOPLE =================
-
-    List<Map<String, dynamic>>
-        latePeople = [];
-
-    for (var doc
-        in peopleSnapshot.docs) {
-
-      final data =
-          doc.data();
-
-      final paid =
-          paidMonths[
-                  doc.id] ??
-              0;
-
-      // ✅ Ignore completed year
-
-      if (paid >= 12) {
-        continue;
-      }
-
-      // ✅ Only late people
-
-      if (paid <
-          currentMonth) {
-
-        final remaining =
-            currentMonth -
-                paid;
-
-        latePeople.add({
-
-          "name":
-              data["name"],
-
-          "phone":
-              data["phone"],
-
-          "remaining":
-              remaining,
-        });
-      }
-    }
-
-    return latePeople;
+return latePeople;
   }
 
   @override
@@ -170,7 +101,13 @@ class _LatePeopleScreenState
 
         builder:
             (context, snapshot) {
-
+if (snapshot.hasError) {
+  return Center(
+    child: Text(
+      "Erreur: ${snapshot.error}",
+    ),
+  );
+}
           if (!snapshot
               .hasData) {
 

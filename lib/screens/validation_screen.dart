@@ -2,359 +2,514 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/pdf_service.dart';
+import '../services/subscription_stats_service.dart';
 
-class ValidationScreen extends StatelessWidget {
+Future<void> approveOperation(
+  String docId,
+  Map<String, dynamic> data,
+) async {
 
-  const ValidationScreen({super.key});
+  try {
+print("APPROVE OPERATION START");
+    final firestore =
+        FirebaseFirestore.instance;
 
-  // =========================
-  // ✅ APPROVE OPERATION
-  // =========================
+    final operationRef =
+        firestore
+            .collection("operations")
+            .doc(docId);
 
-  Future<void> approveOperation(
-    String docId,
-    Map<String, dynamic> data,
-  ) async {
+    final paymentType =
+        data["paymentType"]
+            ?.toString() ?? "";
+String paymentTypeArabic = "";
 
-    try {
+switch (paymentType) {
+  case "monthly":
+    paymentTypeArabic = "اشتراك شهري";
+    break;
 
-      final paymentType =
-          data["paymentType"]
-              ?.toString() ?? "";
+  case "panel":
+    paymentTypeArabic = "اللوحة";
+    break;
 
-      final amount =
-          double.tryParse(
-            data["amount"]
-                .toString(),
-          ) ?? 0;
+  case "donation":
+    paymentTypeArabic = "تبرع";
+    break;
 
-      final name =
-          data["name"]
-              ?.toString() ?? "";
+  default:
+    paymentTypeArabic = paymentType;
+}
+    final amount =
+        double.tryParse(
+          data["amount"]
+              .toString(),
+        ) ?? 0;
 
-      final phone =
-          data["phone"]
-              ?.toString() ?? "";
+    final name =
+        data["name"]
+            ?.toString() ?? "";
 
-      final purpose =
-          data["purpose"]
-              ?.toString() ?? "";
+    final phone =
+        data["phone"]
+            ?.toString() ?? "";
 
-      // =========================
-      // 💳 MONTHLY
-      // =========================
+    final purpose =
+        data["purpose"]
+            ?.toString() ?? "";
 
-      if (paymentType == "monthly") {
+    final personId =
+        data["personId"]
+            ?.toString() ?? "";
+final createdByUid =
+    data["createdByUid"]
+            ?.toString() ??
+        "";
+        final collectorName =
+    data["collectorName"]
+            ?.toString() ??
 
-        final category =
-            data["category"] ?? 500;
+    data["createdByName"]
+            ?.toString() ??
 
-        final months =
-            data["months"] ?? 1;
+    "غير محدد";
+    // =========================
+    // FIRESTORE TRANSACTION
+    // =========================
 
-        final result =
-            await FirebaseFirestore
-                .instance
-                .collection(
-                  "subscriptions",
-                )
-                .where(
-                  "phone",
-                  isEqualTo: phone,
-                )
-                .get();
+    await firestore.runTransaction(
 
-        if (result.docs.isNotEmpty) {
+      (transaction) async {
 
-          final doc =
-              result.docs.first;
+        // =========================
+        // GET OPERATION
+        // =========================
 
-          final subData =
-              doc.data();
+        final operationSnap =
+            await transaction.get(
+          operationRef,
+        );
 
-          final paidMonths =
-              subData["paidMonths"] ?? 0;
+        if (!operationSnap.exists) {
 
-          final lateMonths =
-              subData["lateMonths"] ?? 0;
+          throw Exception(
+            "العملية غير موجودة",
+          );
+        }
 
-          final totalLate =
-              subData["totalLate"] ?? 0;
+        final operationData =
+            operationSnap.data()
+                as Map<String,
+                    dynamic>? ??
+                {};
 
-          await FirebaseFirestore
-              .instance
-              .collection(
-                "subscriptions",
-              )
-              .doc(doc.id)
-              .update({
+        // =========================
+        // CHECK STATUS
+        // =========================
 
-            "paidMonths":
-                paidMonths + months,
+        final currentStatus =
+            operationData["status"]
+                    ?.toString() ??
+                "";
 
-            "lateMonths":
-                lateMonths > months
-                    ? lateMonths - months
-                    : 0,
+        if (currentStatus !=
+            "pending") {
 
-            "totalLate":
-                totalLate > amount
-                    ? totalLate - amount
-                    : 0,
-          });
+          throw Exception(
+            "تمت معالجة العملية مسبقاً",
+          );
+        }
 
-        } else {
+        // =========================
+        // CREATE TRANSACTION
+        // =========================
 
-          await FirebaseFirestore
-              .instance
-              .collection(
-                "subscriptions",
-              )
-              .add({
+       final transactionRef =
+    firestore
+        .collection(
+          "transactions",
+        )
+        .doc(docId);
+        final existingTransaction =
+    await transaction.get(
+      transactionRef,
+    );
 
-            "fullName":
+if (existingTransaction.exists) {
+  throw Exception(
+    "تمت معالجة هذه العملية مسبقاً",
+  );
+}
+
+if (paymentType == "monthly") {
+
+  final coveredMonths =
+      List<int>.from(
+    operationData["coveredMonths"] ?? [],
+  );
+
+  final year =
+      operationData["year"] ??
+      DateTime.now().year;
+
+  for (final month in coveredMonths) {
+
+    final monthLockRef =
+        firestore
+            .collection(
+              "monthly_locks",
+            )
+            .doc(
+              "${personId}_${year}_$month",
+            );
+
+    final monthLockSnap =
+        await transaction.get(
+      monthLockRef,
+    );
+
+    if (monthLockSnap.exists) {
+
+      throw Exception(
+        "الشهر $month مدفوع مسبقاً",
+      );
+    }
+
+    transaction.set(
+      monthLockRef,
+      {
+        "personId": personId,
+        "year": year,
+        "month": month,
+        "operationId": docId,
+        "createdAt":
+            FieldValue.serverTimestamp(),
+      },
+    );
+  }
+}
+
+        transaction.set(
+          transactionRef,
+          {
+
+            "name":
                 name,
 
             "phone":
                 phone,
 
-            "category":
-                category,
+            "personId":
+                personId,
 
-            "monthlyAmount":
-                category,
+            "collectorName":
+                 collectorName,
+                 
+            "paymentType":
+                paymentType,
 
-            "paidMonths":
-                months,
+            "type":
+                "add",
 
-            "lateMonths":
-                0,
+            "amount":
+                amount,
 
-            "totalLate":
-                0,
+            "purpose":
+                purpose,
+
+            "operationId":
+                docId,
+
+            "coveredMonths":
+                operationData[
+                        "coveredMonths"] ??
+                    [],
+
+            "year":
+                operationData[
+                        "year"] ??
+                    DateTime.now()
+                        .year,
+
+            "status":
+                "approved",
+
+            "isDeleted":
+                false,
 
             "createdAt":
                 FieldValue
                     .serverTimestamp(),
-          });
+          },
+        );
+
+        // =========================
+        // MONTHLY
+        // =========================
+
+        if (paymentType ==
+            "monthly") {
+
+          final category =
+    int.tryParse(
+      data["monthlyAmount"]
+          ?.toString() ?? "500",
+    ) ?? 500;
+
+          // =========================
+          // CREATE SUBSCRIPTION
+          // IF NOT EXISTS
+          // =========================
+
+         final subRef =
+    firestore
+        .collection(
+          "subscriptions",
+        )
+        .doc(personId);
+
+final subSnap =
+    await transaction.get(
+  subRef,
+);
+
+if (!subSnap.exists) {
+
+  transaction.set(
+    subRef,
+    {
+      "fullName": name,
+      "phone": phone,
+      "personId": personId,
+      "category": category,
+      "monthlyAmount": category,
+      "createdAt":
+          FieldValue.serverTimestamp(),
+      "isDeleted": false,
+    },
+  );
+}
         }
-      }
 
-      // =========================
-      // 💝 DONATION
-      // =========================
+        // =========================
+        // DONATION
+        // =========================
 
-      if (paymentType == "donation") {
+        if (paymentType ==
+            "donation") {
 
-        await FirebaseFirestore
-            .instance
-            .collection(
-              "donations",
-            )
-            .add({
+          final donationRef =
+              firestore
+                  .collection(
+                    "donations",
+                  )
+                  .doc();
 
-          "fullName":
-              name,
+          transaction.set(
+            donationRef,
+            {
 
-          "phone":
-              phone,
+              "fullName":
+                  name,
 
-          "amount":
-              amount,
+              "phone":
+                  phone,
 
-          "purpose":
-              purpose,
+              "amount":
+                  amount,
 
-          "operationId":
-              docId,
+              "purpose":
+                  purpose,
 
-          "createdAt":
-              FieldValue
-                  .serverTimestamp(),
-        });
-      }
+              "operationId":
+                  docId,
 
-      // =========================
-      // 📦 PANEL
-      // =========================
+              "createdAt":
+                  FieldValue
+                      .serverTimestamp(),
+            },
+          );
+        }
 
-      if (paymentType == "panel") {
+        // =========================
+        // PANEL
+        // =========================
 
-        await FirebaseFirestore
-            .instance
-            .collection(
-              "lawha",
-            )
-            .add({
+        if (paymentType ==
+            "panel") {
 
-          "fullName":
-              name,
+          final panelRef =
+              firestore
+                  .collection(
+                    "lawha",
+                  )
+                  .doc();
 
-          "phone":
-              phone,
+          transaction.set(
+            panelRef,
+            {
 
-          "amount":
-              amount,
+              "fullName":
+                  name,
 
-          "purpose":
-              purpose,
+              "phone":
+                  phone,
 
-          "operationId":
-              docId,
+              "amount":
+                  amount,
 
-          "createdAt":
-              FieldValue
-                  .serverTimestamp(),
-        });
-      }
+              "purpose":
+                  purpose,
 
-      // =========================
-      // 📜 TRANSACTION
-      // =========================
+              "operationId":
+                  docId,
 
-      await FirebaseFirestore
-          .instance
-          .collection(
-            "transactions",
-          )
-          .add({
+              "createdAt":
+                  FieldValue
+                      .serverTimestamp(),
+            },
+          );
+        }
 
-        "name":
-            name,
+        // =========================
+        // UPDATE OPERATION
+        // =========================
 
-        "phone":
-            phone,
+        transaction.update(
+          operationRef,
+          {
 
-        "paymentType":
-            paymentType,
+            "status":
+                "approved",
 
-        "type":
-            "add",
+            "validatedAt":
+                FieldValue
+                    .serverTimestamp(),
+          },
+        );
+      },
+    );
 
-        "amount":
-            amount,
+    // =========================
+    // UPDATE STATS CACHE
+    // =========================
 
-        "purpose":
-            purpose,
+    if (paymentType ==
+        "monthly") {
 
-        "operationId":
-            docId,
+      final category =
+    int.tryParse(
+      data["monthlyAmount"]
+          ?.toString() ?? "500",
+    ) ?? 500;
+      await SubscriptionStatsService
+          .updateSubscriptionStats(
 
-        "status":
-            "approved",
+        personId,
 
-        "createdAt":
-            FieldValue
-                .serverTimestamp(),
-      });
+        category,
+      );
+      final statsDoc =
+    await firestore
+        .collection(
+          "subscription_stats",
+        )
+        .doc(personId)
+        .get();
 
-      // =========================
-      // 💰 UPDATE BALANCE
-      // =========================
+if (statsDoc.exists) {
 
-      final financeRef =
-          FirebaseFirestore
-              .instance
-              .collection(
-                "finance",
-              )
-              .doc("main");
+  final stats =
+      statsDoc.data()!;
 
-      final financeDoc =
-          await financeRef.get();
+  final missingMonths =
+      List<int>.from(
+    stats["missingMonths"] ?? [],
+  );
 
-      double currentBalance = 0;
+ 
+final debt =
+    (stats["debt"] ?? 0) as int;
 
-      if (financeDoc.exists) {
+await firestore
+    .collection("transactions")
+    .doc(docId)
+    .update({
 
-        final financeData =
-            financeDoc.data() ?? {};
+  "pending":
+      missingMonths.length,
 
-        currentBalance =
-            double.tryParse(
-              financeData["balance"]
-                  .toString(),
-            ) ?? 0;
-      }
+  "debt":
+      debt,
 
-      final newBalance =
-          currentBalance + amount;
+  "missingMonths":
+      missingMonths,
+});
 
-      await financeRef.set({
+print("PERSON = $name");
+print("MISSING MONTHS = $missingMonths");
 
-        "balance":
-            newBalance,
+print("DEBT = $debt");
 
-        "updatedAt":
-            FieldValue
-                .serverTimestamp(),
+print("CREATED BY = $createdByUid");
 
-      }, SetOptions(
-        merge: true,
-      ));
+  if (missingMonths.isNotEmpty) {
+print("CREATING LATE NOTIFICATION");
+    await firestore
+        .collection(
+          "notifications",
+        )
+        .add({
 
-      // =========================
-      // 🔔 NOTIFICATION COLLECTOR
-      // =========================
+      "userId":
+          createdByUid,
 
-      final createdByUid =
-          data["createdByUid"]
-                  ?.toString() ??
-              "";
+      "title":
+          "⚠️ منخرط متأخر",
 
-      if (createdByUid.isNotEmpty) {
+      "body":
+          "$name متأخر ${missingMonths.length} شهر\nالدين: $debt MRU",
 
-        await FirebaseFirestore
-            .instance
-            .collection(
-              "notifications",
-            )
-            .add({
+      "type":
+          "late_member",
 
-          "userId":
-              createdByUid,
+      "personId":
+          personId,
 
-          "title":
-              "✅ تم قبول العملية",
+      "read":
+          false,
 
-          "body":
-              "تمت الموافقة على الدخل بقيمة $amount MRU",
+      "createdAt":
+          FieldValue
+              .serverTimestamp(),
+    });
+  }
+}
+    }
 
-          "read":
-              false,
+    // =========================
+    // NOTIFICATION COLLECTOR
+    // =========================
 
-          "createdAt":
-              FieldValue
-                  .serverTimestamp(),
-        });
-      }
+    
 
-      // =========================
-      // 🔔 GLOBAL INFORMATION
-      // =========================
+    if (createdByUid
+        .isNotEmpty) {
 
-      await FirebaseFirestore
-          .instance
+      await firestore
           .collection(
             "notifications",
           )
           .add({
 
+        "userId":
+            createdByUid,
+
         "title":
-            "💰 تم تسديد حالة",
+            "✅ تم قبول العملية",
 
         "body":
-            "الاسم: $name\n"
-            "الهاتف: $phone\n"
-            "المبلغ: $amount MRU\n"
-            "النوع: $paymentType\n"
-            "الغرض: $purpose",
-
-        "type":
-            "global_info",
-
-        "forAll":
-            true,
+            "تمت الموافقة على الدخل بقيمة $amount MRU",
 
         "read":
             false,
@@ -363,472 +518,83 @@ class ValidationScreen extends StatelessWidget {
             FieldValue
                 .serverTimestamp(),
       });
-
-      // =========================
-      // 🖨 PDF
-      // =========================
-
-      try {
-
-        await PdfService
-            .printReceipt(
-
-          name:
-              name,
-
-          phone:
-              phone,
-
-          type:
-              paymentType,
-
-          amount:
-              amount.toInt(),
-
-          date:
-              DateTime.now()
-                  .toString(),
-        );
-
-      } catch (e) {
-
-        print(
-          "PDF ERROR = $e",
-        );
-      }
-
-      // =========================
-      // ✅ UPDATE STATUS
-      // =========================
-
-      await FirebaseFirestore
-          .instance
-          .collection(
-            "operations",
-          )
-          .doc(docId)
-          .update({
-
-        "status":
-            "approved",
-
-        "validatedAt":
-            FieldValue
-                .serverTimestamp(),
-      });
-
-      print(
-        "✅ VALIDATION OK",
-      );
-
-    } catch (e) {
-
-      print(
-        "❌ ERROR = $e",
-      );
     }
-  }
 
-  // =========================
-  // ❌ REJECT
-  // =========================
+    // =========================
+    // GLOBAL INFO
+    // =========================
 
-  Future<void> rejectOperation(
-    String docId,
-  ) async {
+    await firestore
+        .collection(
+          "notifications",
+        )
+        .add({
+
+      "title":
+          "💰 تم تسديد حالة",
+
+      "body":
+          "إسم الزبون: $name\n"
+          "الهاتف: $phone\n"
+          "المبلغ: $amount MRU\n"
+          "النوع: $paymentTypeArabic\n"
+          "الغرض: $purpose",
+
+      "type":
+          "global_info",
+
+      "forAll":
+          true,
+
+      "read":
+          false,
+
+      "createdAt":
+          FieldValue
+              .serverTimestamp(),
+    });
+
+    // =========================
+    // PDF
+    // =========================
 
     try {
 
-      await FirebaseFirestore
-          .instance
-          .collection(
-            "operations",
-          )
-          .doc(docId)
-          .update({
+      await PdfService
+          .printReceipt(
 
-        "status":
-            "rejected",
+        name:
+            name,
 
-        "rejectedAt":
-            FieldValue
-                .serverTimestamp(),
-      });
+        phone:
+            phone,
+
+        type:
+            paymentType,
+
+        amount:
+            amount.toInt(),
+
+        date:
+            DateTime.now()
+                .toString(),
+      );
 
     } catch (e) {
 
       print(
-        "REJECT ERROR = $e",
+        "PDF ERROR = $e",
       );
     }
-  }
 
-  // =========================
-  // BUILD
-  // =========================
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-
-    return Scaffold(
-
-      backgroundColor:
-          const Color(
-        0xFFF5F6FA,
-      ),
-
-      appBar: AppBar(
-
-        title: const Text(
-          "التحقق من العمليات",
-        ),
-
-        centerTitle: true,
-      ),
-
-      body:
-          StreamBuilder<QuerySnapshot>(
-
-        stream:
-            FirebaseFirestore
-                .instance
-                .collection(
-                  "operations",
-                )
-                .where(
-                  "status",
-                  isEqualTo:
-                      "pending",
-                )
-                .orderBy(
-                  "createdAt",
-                  descending: true,
-                )
-                .snapshots(),
-
-        builder: (
-          context,
-          snapshot,
-        ) {
-
-          if (snapshot.hasError) {
-
-            return Center(
-              child: Text(
-                snapshot.error
-                    .toString(),
-              ),
-            );
-          }
-
-          if (!snapshot.hasData) {
-
-            return const Center(
-              child:
-                  CircularProgressIndicator(),
-            );
-          }
-
-          final docs =
-              snapshot.data!.docs;
-
-          if (docs.isEmpty) {
-
-            return const Center(
-              child: Text(
-                "لا توجد عمليات معلقة",
-              ),
-            );
-          }
-
-          return ListView.builder(
-
-            padding:
-                const EdgeInsets
-                    .all(16),
-
-            itemCount:
-                docs.length,
-
-            itemBuilder:
-                (
-              context,
-              index,
-            ) {
-
-              final doc =
-                  docs[index];
-
-              final data =
-                  doc.data()
-                          as Map<
-                              String,
-                              dynamic>? ??
-                      {};
-
-              final name =
-                  data["name"]
-                          ?.toString() ??
-                      "";
-
-              final phone =
-                  data["phone"]
-                          ?.toString() ??
-                      "";
-
-              final type =
-                  data["paymentType"]
-                          ?.toString() ??
-                      "";
-
-              final amount =
-                  data["amount"]
-                          ?.toString() ??
-                      "0";
-
-              final purpose =
-                  data["purpose"]
-                          ?.toString() ??
-                      "";
-
-              return Container(
-
-                margin:
-                    const EdgeInsets
-                        .only(
-                  bottom: 16,
-                ),
-
-                padding:
-                    const EdgeInsets
-                        .all(18),
-
-                decoration:
-                    BoxDecoration(
-
-                  color:
-                      Colors.white,
-
-                  borderRadius:
-                      BorderRadius
-                          .circular(
-                    24,
-                  ),
-                ),
-
-                child: Column(
-
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-
-                  children: [
-
-                    Text(
-
-                      name,
-
-                      style:
-                          const TextStyle(
-
-                        fontSize: 20,
-
-                        fontWeight:
-                            FontWeight
-                                .bold,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 6,
-                    ),
-
-                    Text(
-                      phone,
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    _row(
-                      "النوع",
-                      type,
-                    ),
-
-                    _row(
-                      "المبلغ",
-                      "$amount MRU",
-                    ),
-
-                    if (purpose
-                        .isNotEmpty)
-
-                      _row(
-                        "الغرض",
-                        purpose,
-                      ),
-
-                    const SizedBox(
-                      height: 18,
-                    ),
-
-                    Row(
-
-                      children: [
-
-                        Expanded(
-
-                          child:
-                              ElevatedButton.icon(
-
-                            style:
-                                ElevatedButton
-                                    .styleFrom(
-
-                              backgroundColor:
-                                  Colors.green,
-                            ),
-
-                            onPressed:
-                                () async {
-
-                              await approveOperation(
-                                doc.id,
-                                data,
-                              );
-
-                              if (!context
-                                  .mounted) {
-                                return;
-                              }
-
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(
-
-                                const SnackBar(
-                                  content: Text(
-                                    "✅ تمت الموافقة",
-                                  ),
-                                ),
-                              );
-                            },
-
-                            icon:
-                                const Icon(
-                              Icons.check,
-                            ),
-
-                            label:
-                                const Text(
-                              "موافقة + PDF",
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        Expanded(
-
-                          child:
-                              ElevatedButton.icon(
-
-                            style:
-                                ElevatedButton
-                                    .styleFrom(
-
-                              backgroundColor:
-                                  Colors.red,
-                            ),
-
-                            onPressed:
-                                () async {
-
-                              await rejectOperation(
-                                doc.id,
-                              );
-
-                              if (!context
-                                  .mounted) {
-                                return;
-                              }
-
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(
-
-                                const SnackBar(
-                                  content: Text(
-                                    "❌ تم الرفض",
-                                  ),
-                                ),
-                              );
-                            },
-
-                            icon:
-                                const Icon(
-                              Icons.close,
-                            ),
-
-                            label:
-                                const Text(
-                              "رفض",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+    print(
+      "✅ VALIDATION OK",
     );
-  }
 
-  Widget _row(
-    String title,
-    String value,
-  ) {
+  } catch (e) {
 
-    return Padding(
-
-      padding:
-          const EdgeInsets
-              .symmetric(
-        vertical: 4,
-      ),
-
-      child: Row(
-
-        mainAxisAlignment:
-            MainAxisAlignment
-                .spaceBetween,
-
-        children: [
-
-          Text(title),
-
-          Text(
-
-            value,
-
-            style:
-                const TextStyle(
-
-              fontWeight:
-                  FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+    print(
+      "❌ ERROR = $e",
     );
   }
 }

@@ -206,7 +206,7 @@ class _MyAppState extends State<MyApp> {
         ),
 
         cardTheme:
-            CardTheme(
+    CardThemeData(
 
           elevation: 2,
 

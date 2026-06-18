@@ -79,21 +79,24 @@ class NotificationService {
         },
       );
 
-      // 🌍 GLOBAL TOPIC
+     // 🌍 GLOBAL TOPIC
 
-      try {
+if (!kIsWeb) {
 
-        await _messaging
-            .subscribeToTopic(
-          "allUsers",
-        );
+  try {
 
-      } catch (e) {
+    await _messaging
+        .subscribeToTopic(
+      "allUsers",
+    );
 
-        debugPrint(
-          "Topic non disponible sur Web",
-        );
-      }
+  } catch (e) {
+
+    debugPrint(
+      "Erreur Topic",
+    );
+  }
+}
 
       // 📩 FOREGROUND MESSAGE
 

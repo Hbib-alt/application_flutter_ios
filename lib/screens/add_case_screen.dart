@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'payment_screen.dart';
+
 class AddCaseScreen extends StatefulWidget {
 
-  const AddCaseScreen({super.key});
+  const AddCaseScreen({
+    super.key,
+  });
 
   @override
   State<AddCaseScreen> createState() =>
@@ -14,6 +18,8 @@ class AddCaseScreen extends StatefulWidget {
 class _AddCaseScreenState
     extends State<AddCaseScreen> {
 
+  // ================= CONTROLLERS =================
+
   final nameController =
       TextEditingController();
 
@@ -22,13 +28,15 @@ class _AddCaseScreenState
 
   final purposeController =
       TextEditingController();
+final amountController =
+    TextEditingController();
+
+  // ================= DATA =================
 
   String paymentType =
       "monthly";
 
-  int category = 500;
-
-  int months = 1;
+  int? category;
 
   double amount = 0;
 
@@ -40,22 +48,22 @@ class _AddCaseScreenState
 
   // ================= CLEAN PHONE =================
 
-  String cleanPhoneNumber(
-    String phone,
-  ) {
+ String cleanPhoneNumber(String phone) {
 
-    phone =
-        phone
-            .replaceAll(" ", "")
-            .replaceAll("+", "");
+  phone = phone
+      .replaceAll(" ", "")
+      .replaceAll("+", "")
+      .trim();
 
-    if (phone.startsWith("222")) {
+  if (phone.length == 11 &&
+      phone.startsWith("222")) {
 
-      phone = phone.substring(3);
-    }
-
-    return phone.trim();
+    phone = phone.substring(3);
   }
+
+  return phone;
+}
+
 
   // ================= CHECK PHONE =================
 
@@ -64,7 +72,9 @@ class _AddCaseScreenState
   ) async {
 
     phone =
-        cleanPhoneNumber(phone);
+        cleanPhoneNumber(
+      phone,
+    );
 
     if (phone.length < 8) {
 
@@ -94,10 +104,13 @@ class _AddCaseScreenState
     final result =
         await FirebaseFirestore
             .instance
-            .collection("people")
+            .collection(
+              "people",
+            )
             .where(
               "phone",
-              isEqualTo: "222$phone",
+              isEqualTo:
+                  "222$phone",
             )
             .get();
 
@@ -127,7 +140,17 @@ class _AddCaseScreenState
 
         (data["collectorName"] ?? "")
             .toString();
+if (ownerCollectorId.isEmpty) {
 
+  setState(() {
+
+    phoneConflict = false;
+
+    conflictCollector = "";
+  });
+
+  return;
+}
     // ================= SAME COLLECTOR =================
 
     if (ownerCollectorId ==
@@ -145,13 +168,13 @@ class _AddCaseScreenState
 
     // ================= CONFLICT =================
 
-    setState(() {
+   setState(() {
 
-      phoneConflict = true;
+  phoneConflict = true;
 
-      conflictCollector =
-          ownerCollectorName;
-    });
+ conflictCollector =
+    ownerCollectorName;
+});
   }
 
   // ================= FIND PERSON =================
@@ -161,29 +184,49 @@ class _AddCaseScreenState
     try {
 
       String phone =
-          phoneController.text.trim();
+          phoneController.text
+              .trim();
 
       phone =
-          cleanPhoneNumber(phone);
+          cleanPhoneNumber(
+        phone,
+      );
 
       final result =
           await FirebaseFirestore
               .instance
-              .collection("people")
+              .collection(
+                "people",
+              )
               .where(
                 "phone",
-                isEqualTo: "222$phone",
+                isEqualTo:
+                    "222$phone",
               )
               .get();
 
-      if (result.docs.isNotEmpty) {
+    if (result.docs.isNotEmpty) {
 
-        final data =
-            result.docs.first.data();
+  final data =
+      result.docs.first.data();
 
-        nameController.text =
-            data["name"] ?? "";
-      }
+  nameController.text =
+      data["name"] ?? "";
+
+  category =
+    data["monthlyAmount"] as int?;
+
+  setState(() {});
+
+} else {
+
+  nameController.clear();
+
+  setState(() {
+
+    category = null;
+  });
+}
 
     } catch (_) {}
   }
@@ -198,7 +241,9 @@ class _AddCaseScreenState
     final result =
         await FirebaseFirestore
             .instance
-            .collection("people")
+            .collection(
+              "people",
+            )
             .where(
               "phone",
               isEqualTo: phone,
@@ -207,53 +252,53 @@ class _AddCaseScreenState
 
     if (result.docs.isNotEmpty) {
 
-      return result.docs.first.id;
+      return result
+          .docs
+          .first
+          .id;
     }
 
-    final currentUser =
-        FirebaseAuth
-            .instance
-            .currentUser;
+    
+final currentUser =
+    FirebaseAuth.instance.currentUser;
 
-    String collectorName =
-        "غير معروف";
+String collectorName = "";
 
-    if (currentUser != null) {
+if (currentUser != null) {
 
-      final userDoc =
-          await FirebaseFirestore
-              .instance
-              .collection("users")
-              .doc(currentUser.uid)
-              .get();
+  final userDoc =
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(currentUser.uid)
+          .get();
 
-      collectorName =
-          userDoc
-                  .data()?["name"] ??
-              "غير معروف";
-    }
-
+  collectorName =
+      userDoc.data()?["name"] ?? "";
+}
     final doc =
     await FirebaseFirestore
         .instance
         .collection("people")
         .add({
 
-      "phone": phone,
+  "phone": phone,
 
-      "name": name,
+  "name": name,
 
-      "totalAmount": 0,
+  "totalAmount": 0,
 
-      "collectorId":
-          currentUser?.uid ?? "",
+  "monthlyAmount": category,
 
-      "collectorName":
-          collectorName,
+  "collectorId":
+    FirebaseAuth.instance.currentUser?.uid ?? "",
 
-      "createdAt":
-          FieldValue.serverTimestamp(),
-    });
+"collectorName":
+    collectorName,
+    
+  "createdAt":
+      FieldValue
+          .serverTimestamp(),
+});
 
     return doc.id;
   }
@@ -266,12 +311,14 @@ class _AddCaseScreenState
 
     if (phoneConflict) {
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
 
         SnackBar(
 
           content: Text(
+
             "⚠️ هذا الرقم تابع للمحصل: $conflictCollector",
           ),
         ),
@@ -281,18 +328,32 @@ class _AddCaseScreenState
     }
 
     String phone =
-        phoneController.text.trim();
+        phoneController.text
+            .trim();
 
-    phone =
-        cleanPhoneNumber(phone);
+   phone =
+    cleanPhoneNumber(phone);
 
-    if (!phone.startsWith("222")) {
+if (phone.length != 8) {
 
-      phone = "222$phone";
-    }
+  ScaffoldMessenger.of(context)
+      .showSnackBar(
+
+    const SnackBar(
+      content: Text(
+        "رقم الهاتف يجب أن يتكون من 8 أرقام",
+      ),
+    ),
+  );
+
+  return;
+}
+
+phone = "222$phone";
 
     final name =
-        nameController.text.trim();
+        nameController.text
+            .trim();
 
     // ================= VALIDATION =================
 
@@ -300,8 +361,9 @@ class _AddCaseScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
 
         const SnackBar(
 
@@ -314,30 +376,15 @@ class _AddCaseScreenState
       return;
     }
 
-    if (phone.length != 11) {
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
-        const SnackBar(
-
-          content: Text(
-            "رقم الهاتف غير صحيح",
-          ),
-        ),
-      );
-
-      return;
-    }
+   
 
     if (name.isEmpty) {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
 
         const SnackBar(
 
@@ -350,306 +397,271 @@ class _AddCaseScreenState
       return;
     }
 
-    // ================= CALCULATE AMOUNT =================
-
-    if (paymentType ==
-        "monthly") {
-
-      amount =
-          (category * months)
-              .toDouble();
-    }
-
     try {
+if (paymentType == "monthly" &&
+    category == null) {
 
+  ScaffoldMessenger.of(context)
+      .showSnackBar(
+
+    const SnackBar(
+
+      content: Text(
+        "يرجى اختيار فئة الاشتراك",
+      ),
+    ),
+  );
+
+  return;
+}
       final personId =
           await getOrCreatePerson(
         phone,
         name,
       );
 
-      // ================= CURRENT YEAR =================
+// ================= PANEL + DONATION =================
 
-      final currentYear =
-          DateTime.now().year;
+if (paymentType != "monthly") {
+final purpose =
+    purposeController.text.trim();
 
-      // ================= GET ALL OPERATIONS =================
+if (purpose.length < 10) {
 
-      final existingPayments =
+  ScaffoldMessenger.of(context)
+      .showSnackBar(
+
+    const SnackBar(
+
+      content: Text(
+        "يرجى إدخال موضوع واضح للعملية (10 أحرف على الأقل)",
+      ),
+    ),
+  );
+
+  return;
+}
+  final amount =
+      double.tryParse(
+            amountController.text.trim(),
+          ) ??
+          0;
+
+  if (amount <= 0) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+
+      const SnackBar(
+
+        content: Text(
+          "يرجى إدخال مبلغ صحيح",
+        ),
+      ),
+    );
+
+    return;
+  }
+final currentUser =
+        FirebaseAuth
+            .instance
+            .currentUser;
+
+    String collectorName =
+        "غير معروف";
+
+    if (currentUser != null) {
+
+      final userDoc =
           await FirebaseFirestore
               .instance
-              .collection("operations")
-              .where(
-                "personId",
-                isEqualTo: personId,
+              .collection(
+                "users",
+              )
+              .doc(
+                currentUser.uid,
               )
               .get();
-              // ================= GET ADMIN =================
 
-final adminSnapshot =
-    await FirebaseFirestore
-        .instance
-        .collection("users")
-        .where(
-          "role",
-          isEqualTo: "admin",
-        )
-        .limit(1)
-        .get();
+      collectorName =
+          userDoc.data()?[
+                  "fullName"] ??
+              "غير معروف";
+    }
+ final operationRef =
+    await FirebaseFirestore.instance
+        .collection("operations")
+        .add({
 
-if (adminSnapshot.docs.isEmpty) {
+  "personId": personId,
 
-  throw Exception(
-    "Aucun admin trouvé",
-  );
-}
-
-final adminId =
-    adminSnapshot
-        .docs
-        .first
-        .id;
-
-// ================= CURRENT COLLECTOR =================
-
-final currentUser =
-    FirebaseAuth
-        .instance
-        .currentUser;
-
-String collectorName =
-    "غير معروف";
-
-if (currentUser != null) {
-
-  final userDoc =
-      await FirebaseFirestore
-          .instance
-          .collection("users")
-          .doc(currentUser.uid)
-          .get();
-
-  collectorName =
-      userDoc
-              .data()?["name"] ??
-          "غير معروف";
-}
-// ================= CREATE NOTIFICATION =================
-
-await FirebaseFirestore.instance
-    .collection("notifications")
-    .add({
-
-  "userId": adminId,
-
-  "title":
-      "طلب إدخال مبلغ للصندوق",
-
-  "body":
-
-      "المحصل: $collectorName\n\n"
-
-      "الزبون: $name\n\n"
-
-      "الهاتف: $phone\n\n"
-
-      "نوع العملية: "
-
-      "${paymentType == "monthly"
-          ? "اشتراك"
-          : paymentType == "donation"
-              ? "تبرع"
-              : "لوحة"}\n\n"
-
-      "المبلغ: ${amount.toInt()} أوقية جديدة\n\n"
-
-      "${purposeController.text.trim().isNotEmpty
-          ? "الهدف: ${purposeController.text.trim()}\n\n"
-          : ""}"
-
-      "يرجى الموافقة من أجل إدخال المبلغ للصندوق.",
-
-  "clientName": name,
+  "name": name,
 
   "phone": phone,
-
-  "amount": amount,
 
   "paymentType": paymentType,
 
   "purpose":
       purposeController.text.trim(),
 
+  "amount": amount,
+
   "collectorName":
       collectorName,
-
-  "collectorId":
-      FirebaseAuth
-              .instance
-              .currentUser
-              ?.uid ??
-          "",
 
   "createdByName":
       collectorName,
 
-  "createdByRole":
-      "محصل",
+  "status": "pending",
 
-  "read": false,
+  "isDeleted": false,
 
-  "type": "operation",
+  "createdAt":
+      FieldValue.serverTimestamp(),
+
+  "createdByUid":
+      FirebaseAuth.instance.currentUser?.uid,
+});
+// ================= NOTIFICATION TRESORIER =================
+
+final treasurerQuery =
+    await FirebaseFirestore.instance
+        .collection("users")
+        .where(
+          "role",
+          isEqualTo: "treasurer",
+        )
+        .limit(1)
+        .get();
+
+if (treasurerQuery.docs.isNotEmpty) {
+
+ String paymentTypeArabic = "";
+
+switch (paymentType) {
+  case "monthly":
+    paymentTypeArabic = "اشتراك شهري";
+    break;
+
+  case "donation":
+    paymentTypeArabic = "تبرع";
+    break;
+
+  case "panel":
+    paymentTypeArabic = "اللوحة";
+    break;
+
+  default:
+    paymentTypeArabic = paymentType;
+}
+final currentUser =
+    FirebaseAuth.instance.currentUser;
+
+String collectorName = "";
+
+if (currentUser != null) {
+
+  final userDoc =
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(currentUser.uid)
+          .get();
+
+  collectorName =
+      userDoc.data()?["name"] ?? "";
+}
+await FirebaseFirestore.instance
+    .collection("notifications")
+    .add({
+
+  "userId":
+      treasurerQuery.docs.first.id,
+
+  "title":
+      "💰 طلب إدخال مبلغ للصندوق",
+
+  "body":
+    "المحصل: $collectorName\n"
+    "إسم الزبون: $name\n"
+    "الهاتف: $phone\n"
+    "النوع: $paymentTypeArabic\n"
+    "المبلغ: ${amount.toInt()} MRU\n"
+    "الغرض: ${purposeController.text.trim()}",
+
+  "type":
+      "operation",
+
+  "operationId":
+      operationRef.id,
+
+  "read":
+      false,
 
   "createdAt":
       FieldValue.serverTimestamp(),
 });
-      // ================= COUNT MONTHS =================
+}
+  if (!mounted) return;
 
-      int totalMonths = 0;
+  ScaffoldMessenger.of(context).showSnackBar(
 
-      for (var doc
-          in existingPayments.docs) {
+    const SnackBar(
 
-        final data = doc.data();
+      content: Text(
+        "تم إرسال العملية للصندوق",
+      ),
+    ),
+  );
 
-        final type =
-            data["paymentType"] ?? "";
+  Navigator.pop(context);
 
-        final year =
-            data["year"] ??
-                currentYear;
-
-        if (type == "monthly" &&
-            year == currentYear) {
-
-          totalMonths +=
-              ((data["months"] ??
-                          1)
-                      as num)
-                  .toInt();
-        }
-      }
-
-      // ================= BLOCK IF 12 MONTHS =================
-
-      if (paymentType ==
-          "monthly") {
-
-        if (totalMonths >= 12) {
-
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(
-                  context)
-              .showSnackBar(
-
-            const SnackBar(
-
-              content: Text(
-                "هذا الشخص أكمل اشتراك 12 شهر",
-              ),
-            ),
-          );
-
-          return;
-        }
-
-        if ((totalMonths +
-                months) >
-            12) {
-
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(
-                  context)
-              .showSnackBar(
-
-            const SnackBar(
-
-              content: Text(
-                "لا يمكن تجاوز 12 شهر",
-              ),
-            ),
-          );
-
-          return;
-        }
-      }
-
-      // ================= SAVE =================
-
-      await FirebaseFirestore
-          .instance
-          .collection("operations")
-          .add({
-
-        "name": name,
-
-        "phone": phone,
-
-        "amount":
-            amount.toInt(),
-
-        "paymentType":
-            paymentType,
-
-        "type":
-            paymentType,
-
-        "category":
-            category,
-
-        "months":
-            months,
-
-        "purpose":
-            purposeController.text
-                .trim(),
-
-        "personId":
-            personId,
-
-        "status":
-            "pending",
-
-        "year":
-            currentYear,
-
-        "createdBy":
-            FirebaseAuth
-                    .instance
-                    .currentUser
-                    ?.uid ??
-                "admin",
-
-        "createdAt":
-            FieldValue
-                .serverTimestamp(),
-      });
-
-      // ================= SUCCESS =================
+  return;
+}
+      // ================= OPEN PAYMENT SCREEN =================
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      Navigator.push(
 
-        const SnackBar(
+        context,
 
-          content: Text(
-            "✅ تم الحفظ",
+        MaterialPageRoute(
+
+          builder:
+              (_) => PaymentScreen(
+
+            data: {
+
+              "personId":
+                  personId,
+
+              "fullName":
+                  name,
+
+              "phone":
+                  phone,
+
+              "monthlyAmount":
+                  category,
+
+              "paymentType":
+                  paymentType,
+
+              "purpose":
+    purposeController.text.trim(),
+            },
+
+            balance: 100000,
           ),
         ),
       );
-
-      Navigator.pop(context);
 
     } catch (e) {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
 
         SnackBar(
 
@@ -664,12 +676,16 @@ await FirebaseFirestore.instance
   // ================= BUILD =================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
 
     return Scaffold(
 
       backgroundColor:
-          const Color(0xFFF5F6FA),
+          const Color(
+        0xFFF5F6FA,
+      ),
 
       appBar: AppBar(
 
@@ -685,7 +701,9 @@ await FirebaseFirestore.instance
       body: Padding(
 
         padding:
-            const EdgeInsets.all(16),
+            const EdgeInsets.all(
+          16,
+        ),
 
         child: ListView(
 
@@ -699,15 +717,18 @@ await FirebaseFirestore.instance
                   phoneController,
 
               keyboardType:
-                  TextInputType.number,
+                  TextInputType
+                      .number,
 
-              onChanged: (value) async {
+              onChanged:
+                  (value) async {
 
                 await checkPhoneLive(
                   value,
                 );
 
-                if (value.length >= 8) {
+                if (value.length >=
+                    8) {
 
                   findPerson();
                 }
@@ -717,7 +738,7 @@ await FirebaseFirestore.instance
                   InputDecoration(
 
                 labelText:
-                    "رقم الهاتف (بدون 222)",
+                    "رقم الهاتف (8 أرقام) ",
 
                 errorText:
 
@@ -743,7 +764,8 @@ await FirebaseFirestore.instance
               decoration:
                   const InputDecoration(
 
-                labelText: "الاسم",
+                labelText:
+                    "الاسم",
               ),
             ),
 
@@ -769,7 +791,8 @@ await FirebaseFirestore.instance
 
                 DropdownMenuItem(
 
-                  value: "monthly",
+                  value:
+                      "monthly",
 
                   child: Text(
                     "اشتراك",
@@ -778,7 +801,8 @@ await FirebaseFirestore.instance
 
                 DropdownMenuItem(
 
-                  value: "donation",
+                  value:
+                      "donation",
 
                   child: Text(
                     "تبرع",
@@ -787,7 +811,8 @@ await FirebaseFirestore.instance
 
                 DropdownMenuItem(
 
-                  value: "panel",
+                  value:
+                      "panel",
 
                   child: Text(
                     "لوحة",
@@ -811,74 +836,46 @@ await FirebaseFirestore.instance
 
             // ================= MONTHLY =================
 
-            if (paymentType ==
-                "monthly")
-              ...[
+           if (paymentType == "monthly" &&
+    category == null)
+  DropdownButtonFormField<int>(
+    decoration: const InputDecoration(
+      labelText: "فئة الاشتراك",
+    ),
+    items: const [
+      DropdownMenuItem(
+        value: 200,
+        child: Text("200 MRU"),
+      ),
+      DropdownMenuItem(
+        value: 500,
+        child: Text("500 MRU"),
+      ),
+    ],
+    onChanged: (v) {
+      setState(() {
+        category = v;
+      });
+    },
+  ),
+           if (paymentType == "monthly" &&
+    category != null)
+  Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.blue.shade50,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      "فئة الزبون: ${category!} أوقية",
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
 
-              DropdownButtonFormField<
-                  int>(
-
-                value: category,
-
-                decoration:
-                    const InputDecoration(
-
-                  labelText:
-                      "الفئة",
-                ),
-
-                items: const [
-
-                  DropdownMenuItem(
-
-                    value: 500,
-
-                    child:
-                        Text("500"),
-                  ),
-
-                  DropdownMenuItem(
-
-                    value: 200,
-
-                    child:
-                        Text("200"),
-                  ),
-                ],
-
-                onChanged: (v) {
-
-                  setState(() {
-
-                    category = v!;
-                  });
-                },
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              TextField(
-
-                keyboardType:
-                    TextInputType.number,
-
-                decoration:
-                    const InputDecoration(
-
-                  labelText:
-                      "عدد الأشهر",
-                ),
-
-                onChanged: (v) {
-
-                  months =
-                      int.tryParse(v) ??
-                          1;
-                },
-              ),
-            ],
+                
 
             // ================= DONATION / PANEL =================
 
@@ -907,29 +904,19 @@ await FirebaseFirestore.instance
 
               TextField(
 
-  keyboardType:
-      TextInputType.number,
+  controller:
+      amountController,
 
-  decoration: InputDecoration(
+  keyboardType:
+      TextInputType
+          .number,
+
+  decoration:
+      const InputDecoration(
 
     labelText:
-        paymentType == "donation" ||
-                paymentType == "panel"
-            ? "المبلغ بالأوقية الجديدة"
-            : "المبلغ",
-
-    helperText:
-        paymentType == "donation" ||
-                paymentType == "panel"
-            ? "يرجى إدخال المبلغ بالأوقية الجديدة"
-            : null,
+        "المبلغ بالأوقية الجديدة",
   ),
-
-  onChanged: (v) {
-
-    amount =
-        double.tryParse(v) ?? 0;
-  },
 ),
             ],
 
@@ -944,7 +931,7 @@ await FirebaseFirestore.instance
               onPressed: submit,
 
               child: const Text(
-                "حفظ",
+                "متابعة",
               ),
             ),
           ],

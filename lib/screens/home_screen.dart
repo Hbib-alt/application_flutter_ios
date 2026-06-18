@@ -2,8 +2,10 @@ import 'subscriptions_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'payment_screen.dart';
 import 'change_password_screen.dart';
 import 'history_search_screen.dart';
+import 'trash_screen.dart';
 
 import '../services/user_service.dart';
 import '../services/auth_service.dart';
@@ -12,17 +14,20 @@ import 'members_screen.dart';
 import 'export_database_screen.dart';
 
 import 'export_database_pdf_screen.dart';
+import 'annual_report_screen.dart';
+import 'operations_cleanup_screen.dart';
 
 // 📌 Écrans
-import 'cases_screen.dart';
+
 import 'dashboard_screen.dart';
 import 'caisse_screen.dart';
 import 'notifications_screen.dart';
 import 'late_people_screen.dart';
 import 'add_case_screen.dart';
-import 'reports_screen.dart';
+import 'monthly_contributions_status_screen.dart';
 import 'login_screen.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/subscription_stats_service.dart';
 // ❤️ Module santé
 import 'health_cases_screen.dart';
 
@@ -117,7 +122,200 @@ class _HomeScreenState
         return "UTILISATEUR";
     }
   }
+Future<void> deleteOperation(
 
+  BuildContext context,
+
+  String operationId,
+) async {
+
+  try {
+final firestore =
+    FirebaseFirestore.instance;
+    final operationDoc =
+    await firestore
+        .collection("operations")
+        .doc(operationId)
+        .get();
+
+if (!operationDoc.exists) {
+  throw Exception(
+    "Opération introuvable",
+  );
+}
+
+final operationData =
+    operationDoc.data()!;
+
+final status =
+    operationData["status"]
+            ?.toString() ??
+        "";
+    // ================= DELETE NOTIFICATIONS =================
+
+    final notifications =
+
+        await FirebaseFirestore
+            .instance
+            .collection(
+              "notifications",
+            )
+            .where(
+              "operationId",
+              isEqualTo:
+                  operationId,
+            )
+            .get();
+
+    for (var doc
+        in notifications.docs) {
+
+      await doc.reference
+          .delete();
+    }
+if (status == "approved") {
+
+  final transactionDoc =
+      await firestore
+          .collection(
+            "transactions",
+          )
+          .doc(
+            operationId,
+          )
+          .get();
+
+  if (transactionDoc.exists) {
+
+    final transactionData =
+        transactionDoc.data()!;
+
+    final paymentType =
+        transactionData["paymentType"]
+                ?.toString() ??
+            "";
+
+    if (paymentType == "monthly") {
+
+      final personId =
+          transactionData["personId"]
+                  ?.toString() ??
+              "";
+
+      final year =
+          transactionData["year"] ??
+          DateTime.now().year;
+
+      final coveredMonths =
+          List<int>.from(
+        transactionData[
+                "coveredMonths"] ??
+            [],
+      );
+
+      for (final month
+          in coveredMonths) {
+
+        await firestore
+            .collection(
+              "monthly_locks",
+            )
+            .doc(
+              "${personId}_${year}_$month",
+            )
+            .delete();
+      }
+    }
+
+    await transactionDoc.reference
+        .update({
+
+      "isDeleted": true,
+
+      "status":
+          "cancelled",
+    });
+    if (paymentType == "monthly") {
+
+  final personId =
+      transactionData["personId"]
+              ?.toString() ??
+          "";
+
+  final subscriptionDoc =
+      await firestore
+          .collection(
+            "subscriptions",
+          )
+          .doc(personId)
+          .get();
+
+  if (subscriptionDoc.exists) {
+
+    final category =
+        subscriptionDoc.data()?[
+                "category"] ??
+            500;
+
+    await SubscriptionStatsService
+        .updateSubscriptionStats(
+      personId,
+      category,
+    );
+  }
+}
+  }
+}
+
+    // ================= LOGICAL DELETE =================
+
+    await FirebaseFirestore
+        .instance
+        .collection(
+          "operations",
+        )
+        .doc(
+          operationId,
+        )
+        .update({
+
+      "isDeleted": true,
+    });
+
+    if (context.mounted) {
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+
+        const SnackBar(
+
+          content: Text(
+            "✅ تم حذف العملية",
+          ),
+        ),
+      );
+    }
+
+  } catch (e) {
+
+    if (context.mounted) {
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+
+        SnackBar(
+
+          content:
+              Text(
+            "Erreur : $e",
+          ),
+        ),
+      );
+    }
+  }
+}
   // ================= BUILD =================
 
   @override
@@ -427,8 +625,8 @@ class _HomeScreenState
                 ),
 
                 const SizedBox(
-                  height: 25,
-                ),
+  height: 12,
+),
 
                 // ================= TOP BAR =================
 
@@ -572,262 +770,228 @@ class _HomeScreenState
                   height: 20,
                 ),
 
-                // ================= GRID =================
+               // ================= CARDS =================
 
-                GridView.count(
+Wrap(
 
-                  shrinkWrap: true,
+  spacing: 15,
 
-                  physics:
-                      const NeverScrollableScrollPhysics(),
+  runSpacing: 15,
 
-                  crossAxisCount: 2,
+  children: [
 
-                  crossAxisSpacing:
-                      15,
-
-                  mainAxisSpacing:
-                      15,
-
-                  childAspectRatio:
-                      1.05,
-
-                  children: [
-
-                    _card(
-                      context,
-                      Icons.add_circle,
-                      "إضافة",
-                      Colors.teal,
-                      const AddCaseScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.assignment,
-                      "العمليات",
-                      Colors.blue,
-                      const CasesScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.health_and_safety,
-                      "الحالات",
-                      Colors.pink,
-                      const HealthCasesScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.bar_chart,
-                      "Dashboard",
-                      Colors.orange,
-                      const DashboardScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.account_balance_wallet,
-                      "الصندوق",
-                      Colors.green,
-                      const CaisseScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.analytics,
-                      "التقارير",
-                      Colors.indigo,
-                      const ReportsScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.warning_amber,
-                      "متأخري $collectorName",
-                      Colors.red,
-                      const LatePeopleScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.people,
-                      "مشتركي $collectorName",
-                      Colors.cyan,
-                      const MembersScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.payments,
-                      "الاشتراكات العامة",
-                      Colors.deepPurple,
-                      const SubscriptionsScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.search,
-                      "السجل العام",
-                      Colors.brown,
-                      const HistorySearchScreen(),
-                    ),
-
-                    _card(
-                      context,
-                      Icons.lock_reset,
-                      "تغيير كلمة المرور",
-                      Colors.deepPurple,
-                      const ChangePasswordScreen(),
-                    ),
-                    _card(
+   _card(
   context,
-  Icons.table_view,
-  "تصدير Excel",
-  Colors.green,
-  const ExportDatabaseScreen(),
+  Icons.add_circle,
+  "إضافة مبلغ ",
+  Colors.teal,
+  const AddCaseScreen(),
+),
+   
+    _card(
+      context,
+      Icons.health_and_safety,
+      "إعلان حالة",
+      Colors.pink,
+      const HealthCasesScreen(),
+    ),
+
+    _card(
+      context,
+      Icons.bar_chart,
+      "وضعية الحالات",
+      Colors.orange,
+      const DashboardScreen(),
+    ),
+
+    _card(
+      context,
+      Icons.account_balance_wallet,
+      "رصيد الصندوق",
+      Colors.green,
+      const CaisseScreen(),
+    ),
+
+    _card(
+  context,
+  Icons.analytics,
+  "وضعية الاشتراكات الشهرية",
+  Colors.indigo,
+  const MonthlyContributionsStatusScreen(),
 ),
 
+    _card(
+      context,
+      Icons.warning_amber,
+      "متأخري $collectorName",
+      Colors.red,
+      const LatePeopleScreen(),
+    ),
+
+    _card(
+      context,
+      Icons.people,
+      "مشتركي $collectorName",
+      Colors.cyan,
+      const MembersScreen(),
+    ),
+
+   
+    _card(
+      context,
+      Icons.search,
+      "السجل العام",
+      Colors.brown,
+      const HistorySearchScreen(),
+    ),
+
+FutureBuilder<bool>(
+
+  future: UserService.isAdmin(),
+
+  builder: (context, snapshot) {
+
+    if (snapshot.data != true) {
+
+      return const SizedBox();
+    }
+
+    return _card(
+
+      context,
+
+      Icons.restore_from_trash,
+
+      "سلة المحذوفات",
+
+      Colors.grey,
+
+      const TrashScreen(),
+    );
+  },
+),
+    _card(
+      context,
+      Icons.lock_reset,
+      "تغيير كلمة المرور",
+      Colors.deepPurple,
+      const ChangePasswordScreen(),
+    ),
 _card(
   context,
-  Icons.picture_as_pdf,
-  "تصدير PDF",
+  Icons.logout,
+  "خروج",
   Colors.red,
-  const ExportDatabasePdfScreen(),
+  const LoginScreen(),
 ),
-                    // 🚪 LOGOUT
+    FutureBuilder<bool>(
 
-                    GestureDetector(
+      future: UserService.isAdmin(),
 
-                      onTap: () async {
+      builder: (context, snapshot) {
 
-                        await AuthService
-                            .logout();
+        if (snapshot.data != true) {
 
-                        if (context.mounted) {
+          return const SizedBox();
+        }
 
-                          Navigator.pushReplacement(
+        return _card(
 
-                            context,
+          context,
 
-                            MaterialPageRoute(
+          Icons.table_view,
 
-                              builder: (_) =>
-                                  const LoginScreen(),
-                            ),
-                          );
-                        }
-                      },
+          "تصدير Excel",
 
-                      child: Container(
+          Colors.green,
 
-                        decoration:
-                            BoxDecoration(
+          const ExportDatabaseScreen(),
+        );
+      },
+    ),
 
-                          color: Colors.white,
+    FutureBuilder<bool>(
 
-                          borderRadius:
-                              BorderRadius.circular(
-                            32,
-                          ),
+      future: UserService.isAdmin(),
 
-                          boxShadow: [
+      builder: (context, snapshot) {
 
-                            BoxShadow(
+        if (snapshot.data != true) {
 
-                              color:
-                                  Colors.red
-                                      .withOpacity(
-                                0.10,
-                              ),
+          return const SizedBox();
+        }
 
-                              blurRadius: 30,
+        return _card(
 
-                              offset:
-                                  const Offset(
-                                0,
-                                10,
-                              ),
-                            ),
-                          ],
-                        ),
+          context,
 
-                        child: Column(
+          Icons.picture_as_pdf,
 
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+          "تصدير PDF",
 
-                          children: [
+          Colors.red,
 
-                            Container(
+          const ExportDatabasePdfScreen(),
+        );
+      },
+    ),
 
-                              padding:
-                                  const EdgeInsets.all(
-                                18,
-                              ),
+    FutureBuilder<bool>(
 
-                              decoration:
-                                  BoxDecoration(
+      future: UserService.isAdmin(),
 
-                                gradient:
-                                    LinearGradient(
+      builder: (context, snapshot) {
 
-                                  colors: [
+        if (snapshot.data != true) {
 
-                                    Colors.red
-                                        .withOpacity(
-                                      0.25,
-                                    ),
+          return const SizedBox();
+        }
 
-                                    Colors.red
-                                        .withOpacity(
-                                      0.10,
-                                    ),
-                                  ],
-                                ),
+        return _card(
 
-                                shape:
-                                    BoxShape.circle,
-                              ),
+          context,
 
-                              child: const Icon(
+          Icons.analytics,
 
-                                Icons.logout,
+          "التقرير السنوي",
 
-                                color:
-                                    Colors.red,
+          Colors.blue,
 
-                                size: 42,
-                              ),
-                            ),
+          const AnnualReportScreen(),
+        );
+      },
+    ),
 
-                            const SizedBox(
-                              height: 18,
-                            ),
+    FutureBuilder<bool>(
 
-                            const Text(
+      future: UserService.isAdmin(),
 
-                              "خروج",
+      builder: (context, snapshot) {
 
-                              textAlign:
-                                  TextAlign.center,
+        if (snapshot.data != true) {
 
-                              style:
-                                  TextStyle(
+          return const SizedBox();
+        }
 
-                                fontSize: 18,
+        return _card(
 
-                                fontWeight:
-                                    FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          context,
+
+          Icons.cleaning_services,
+
+          "تنظيف العمليات",
+
+          Colors.red,
+
+          const OperationsCleanupScreen(),
+        );
+      },
+    ),
+
+   
+  ],
+),
+ 
               ],
             ),
           ),
@@ -850,28 +1014,61 @@ _card(
 
     Widget page,
   ) {
+final screenWidth =
+    MediaQuery.of(context).size.width;
 
-    return GestureDetector(
+final titleFontSize =
+    screenWidth < 360
+        ? 13.0
+        : screenWidth < 400
+            ? 15.0
+            : 17.0;
+         return GestureDetector(
 
-      onTap: () {
+  onTap: () async {
 
-        Navigator.push(
+    if (title == "خروج") {
 
-          context,
+      await AuthService.logout();
 
-          MaterialPageRoute(
+     if (context.mounted) {
 
-            builder: (_) => page,
-          ),
-        );
-      },
+  Navigator.pushReplacement(
 
-      child: AnimatedContainer(
+    context,
 
-        duration:
-            const Duration(
-          milliseconds: 250,
-        ),
+    MaterialPageRoute(
+
+      builder: (_) =>
+          const LoginScreen(),
+    ),
+  );
+}
+
+      return;
+    }
+
+    Navigator.push(
+
+      context,
+
+      MaterialPageRoute(
+
+        builder: (_) => page,
+      ),
+    );
+  },
+
+  child: AnimatedContainer(
+
+
+  width: (screenWidth - 70) / 2,
+height: 160,
+
+  duration:
+      const Duration(
+    milliseconds: 250,
+  ),
 
         decoration:
             BoxDecoration(
@@ -919,65 +1116,43 @@ _card(
 
           children: [
 
-            Container(
+         Container(
 
-              padding:
-                  const EdgeInsets.all(
-                18,
-              ),
+  padding: EdgeInsets.all(
+    screenWidth < 360 ? 14 : 18,
+  ),
 
-              decoration:
-                  BoxDecoration(
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        color.withOpacity(0.25),
+        color.withOpacity(0.10),
+      ],
+    ),
+    shape: BoxShape.circle,
+  ),
 
-                gradient:
-                    LinearGradient(
-
-                  colors: [
-
-                    color.withOpacity(
-                      0.25,
-                    ),
-
-                    color.withOpacity(
-                      0.10,
-                    ),
-                  ],
-                ),
-
-                shape:
-                    BoxShape.circle,
-              ),
-
-              child: Icon(
-
-                icon,
-
-                color: color,
-
-                size: 42,
-              ),
-            ),
+  child: Icon(
+    icon,
+    color: color,
+    size: screenWidth < 360 ? 34 : 42,
+  ),
+),
 
             const SizedBox(
               height: 18,
             ),
 
             Text(
-
-              title,
-
-              textAlign:
-                  TextAlign.center,
-
-              style:
-                  const TextStyle(
-
-                fontSize: 18,
-
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
+  title,
+  textAlign: TextAlign.center,
+  maxLines: 3,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    fontSize: titleFontSize,
+    fontWeight: FontWeight.bold,
+  ),
+),
           ],
         ),
       ),

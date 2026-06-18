@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import '../services/health_case_notification_service.dart';
 import '../utils/workflow.dart';
 
 import '../services/user_service.dart';
@@ -141,7 +141,11 @@ class _HealthCasePaymentScreenState
       final userPhone =
           await UserService
               .getPhone();
-
+final fullName =
+    widget.data["fullName"]
+        ?.toString() ??
+    "مستفيد";
+    
       final caseRef =
           FirebaseFirestore.instance
               .collection(
@@ -250,35 +254,45 @@ class _HealthCasePaymentScreenState
       });
 
       // ================= UPDATE CASE =================
+await caseRef.update({
 
-      await caseRef.update({
+  "status":
+      Workflow.paid,
 
-        "status":
-            Workflow.paid,
+  "paidAmount":
+      amount,
 
-        "paidAmount":
-            amount,
+  "paidBy":
+      uid,
 
-        "paidBy":
-            uid,
+  "paidByName":
+      userName,
 
-        "paidByName":
-            userName,
+  "paidByRole":
+      userRole,
 
-        "paidByRole":
-            userRole,
+  "paidByPhone":
+      userPhone,
 
-        "paidByPhone":
-            userPhone,
+  "paymentNote":
+      noteController.text
+          .trim(),
 
-        "paymentNote":
-            noteController.text
-                .trim(),
+  "paidAt":
+      FieldValue
+          .serverTimestamp(),
+});
 
-        "paidAt":
-            FieldValue
-                .serverTimestamp(),
-      });
+await HealthCaseNotificationService
+    .notifyCommittee(
+  title: "✅ تم صرف المستحق",
+
+  body:
+      "$fullName استفاد من ${amount.toInt()} MRU",
+
+  caseId: widget.caseId,
+);
+    
 
       // ================= SUCCESS =================
 
@@ -440,55 +454,50 @@ class _HealthCasePaymentScreenState
 
             // ================= BUTTON =================
 
-            ElevatedButton
-                .icon(
+ElevatedButton.icon(
 
-              onPressed:
-                  isLoading
-                      ? null
-                      : confirmPayment,
+  onPressed:
+      isLoading
+          ? null
+          : confirmPayment,
 
-              icon:
-                  const Icon(
-                Icons.payments,
+  icon: const Icon(
+    Icons.payments,
+  ),
+
+  label:
+
+      isLoading
+
+          ? const Padding(
+
+              padding:
+                  EdgeInsets.all(8),
+
+              child:
+                  CircularProgressIndicator(
+                color: Colors.white,
               ),
+            )
 
-              label:
-                  isLoading
-                      ? const SizedBox(
-
-                          width: 22,
-
-                          height: 22,
-
-                          child:
-                              CircularProgressIndicator(
-
-                            color:
-                                Colors.white,
-
-                            strokeWidth:
-                                2,
-                          ),
-                        )
-                      : const Text(
-                          "تأكيد الصرف",
-                        ),
-
-              style:
-                  ElevatedButton
-                      .styleFrom(
-
-                minimumSize:
-                    const Size(
-                  double.infinity,
-                  50,
-                ),
-
-                backgroundColor:
-                    Colors.green,
-              ),
+          : const Text(
+              "تأكيد صرف المستحق",
             ),
+
+  style:
+      ElevatedButton.styleFrom(
+
+    backgroundColor:
+        Colors.green,
+
+    foregroundColor:
+        Colors.white,
+
+    minimumSize:
+        const Size.fromHeight(55),
+  ),
+),
+
           ],
         ),
       ),

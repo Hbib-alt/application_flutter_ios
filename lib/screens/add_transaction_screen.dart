@@ -45,10 +45,15 @@ class _AddTransactionScreenState
             .replaceAll(" ", "")
             .replaceAll("+", "");
 
-    if (phone.startsWith("222")) {
+    if (
+    phone.length == 11 &&
+    phone.startsWith("222")
+) {
 
-      phone = phone.substring(3);
-    }
+  phone = phone.substring(
+    3,
+  );
+}
 
     return phone.trim();
   }
@@ -118,20 +123,37 @@ class _AddTransactionScreenState
       return;
     }
 
-    final data = doc.data()!;
+   final data = doc.data()!;
 
-    final ownerCollectorId =
 
-        data["collectorId"] ?? "";
 
-    final ownerCollectorName =
+final ownerCollectorId =
+    (data["collectorId"] ?? "")
+        .toString();
 
-        data["collectorName"] ?? "";
+final ownerCollectorName =
+    (data["collectorName"] ?? "")
+        .toString();
 
+
+
+if (ownerCollectorId.isEmpty) {
+
+  setState(() {
+
+    phoneConflict = false;
+
+    conflictCollector = "";
+  });
+
+  return;
+}
     // ================= SAME COLLECTOR =================
 
-    if (ownerCollectorId ==
-        currentCollectorId) {
+   
+
+if (ownerCollectorId ==
+    currentCollectorId) {
 
       setState(() {
 
@@ -143,15 +165,13 @@ class _AddTransactionScreenState
       return;
     }
 
-    // ================= CONFLICT =================
-
     setState(() {
 
-      phoneConflict = true;
+  phoneConflict = true;
 
-      conflictCollector =
-          ownerCollectorName;
-    });
+  conflictCollector =
+      ownerCollectorName;
+});
   }
 
   // ================= SAVE =================
@@ -219,7 +239,7 @@ class _AddTransactionScreenState
 
       collectorName =
           userDoc
-                  .data()?["name"] ??
+                  .data()?["fullName"] ??
               "";
     }
 
@@ -229,7 +249,21 @@ class _AddTransactionScreenState
         cleanPhoneNumber(
       phoneController.text,
     );
+if (phone.length != 8) {
 
+  ScaffoldMessenger.of(context)
+      .showSnackBar(
+
+    const SnackBar(
+
+      content: Text(
+        "⚠️ رقم الهاتف غير صحيح",
+      ),
+    ),
+  );
+
+  return;
+}
     // ================= CREATE PERSON =================
 
     final peopleDoc =
@@ -457,28 +491,23 @@ class _AddTransactionScreenState
 
             // ================= AMOUNT =================
 
-            TextField(
+           TextField(
 
-              controller:
-                  amountController,
+  controller:
+      amountController,
 
-              keyboardType:
-                  TextInputType.number,
+  keyboardType:
+      TextInputType.number,
 
-              decoration:
-                  const InputDecoration(
+  decoration:
+      const InputDecoration(
 
-                labelText:
-                    "المبلغ",
+    labelText:
+        "المبلغ بالأوقية الجديدة",
+  ),
 
-                border:
-                    OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(
-              height: 15,
-            ),
+ 
+),
 
             // ================= NOTE =================
 
